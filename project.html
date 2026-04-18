@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto | (MZZ.DSG)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-item"><a href="index.html">Máximo M.</a></div>
+        <div class="nav-item text-center"><a href="work.html">Work</a></div>
+        <div class="nav-item text-right"><a href="sobre-mi.html">Sobre Mi</a></div>
+    </nav>
+
+    <!-- Full-width Title Header -->
+    <section class="project-title-header" id="dynamic-header">
+    </section>
+
+    <!-- Content Grid with Sticky Sidebar -->
+    <div class="project-content-grid">
+        <!-- Sticky Metadata Sidebar (Left - 30%) -->
+        <aside class="metadata-sidebar">
+            <section class="project-info-section" id="project-info">
+                <div class="project-overview">
+                    <h3 class="project-subtitle">Project Overview</h3>
+                    <p class="project-description" id="project-description"></p>
+                </div>
+
+                <div class="project-type-section">
+                    <h3 class="project-subtitle">Project Type</h3>
+                    <p class="project-type-text" id="project-type"></p>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Scrolling Images (Right - 70%) -->
+        <main class="project-images" id="dynamic-gallery">
+        </main>
+    </div>
+
+    <section class="other-projects">
+        <h2 class="text-center" style="margin-bottom: 2rem;">OTHER PROJECTS</h2>
+        <div class="other-projects-grid" id="other-projects-grid">
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-top">
+            <div class="footer-contact">
+                <p>mazzuchinmaximo@gmail.com</p>
+                <p>Córdoba, Argentina</p>
+                <p>Disponible para proyectos freelance.</p>
+            </div>
+            <div class="footer-links">
+                <p>PÁGINAS</p>
+                <a href="index.html">Home</a>
+                <a href="sobre-mi.html">Sobre Mi</a>
+                <a href="work.html">Work</a>
+            </div>
+        </div>
+        <div class="footer-center">
+            <div class="title-wrapper">
+                <h1 class="title-giant">(MZZ.DSG)</h1>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Máximo Mazzuchin.</p>
+            <a href="https://instagram.com/mzz.dsg" target="_blank">Instagram</a>
+        </div>
+    </footer>
+
+    <!-- Full-screen lightbox: backdrop close, on-screen arrows, image click = zoom cycle, Esc / ← / → -->
+    <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog">
+        <button type="button" id="close-btn" class="lightbox-close" aria-label="Close">×</button>
+        <button type="button" id="prev-btn" class="lightbox-nav lightbox-prev" aria-label="Previous image">←</button>
+        <button type="button" id="next-btn" class="lightbox-nav lightbox-next" aria-label="Next image">→</button>
+        <div id="lightbox-stage" class="lightbox-stage">
+            <img id="lightbox-img" class="lightbox-asset" src="" alt="">
+            <video id="lightbox-video" class="lightbox-asset lightbox-asset--hidden" muted loop playsinline disablePictureInPicture preload="metadata"></video>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
