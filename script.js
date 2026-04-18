@@ -260,7 +260,7 @@ function isLightboxOpen() {
 // 2B. FUNCIÓN PARA RENDERIZAR GALERÍA
 // =========================================
 function coverImageUrl(project) {
-    return project.coverImage || `${project.imageFolder}/cover.jpg`;
+    return project.coverImage || `${project.imageFolder}/cover.webp`;
 }
 
 function pushLightboxItem(src, media) {
@@ -328,7 +328,7 @@ function renderGalleryLegacyLayout(galleryContainer, project) {
         const verticalContainer = document.createElement('div');
         verticalContainer.className = 'gallery-vertical';
         for (let i = 1; i <= project.verticalImgCount; i++) {
-            const url = `${project.imageFolder}/image-${i}.jpg`;
+            const url = `${project.imageFolder}/image-${i}.webp`;
             appendGalleryMedia(verticalContainer, url, project.title, 'Gallery image', i);
         }
         galleryContainer.appendChild(verticalContainer);
@@ -338,7 +338,7 @@ function renderGalleryLegacyLayout(galleryContainer, project) {
         const masonryContainer = document.createElement('div');
         masonryContainer.className = 'gallery-masonry';
         for (let i = 1; i <= project.masonryImgCount; i++) {
-            const url = `${project.imageFolder}/grid-${i}.jpg`;
+            const url = `${project.imageFolder}/grid-${i}.webp`;
             appendGalleryMedia(masonryContainer, url, project.title, 'Grid image', i);
         }
         galleryContainer.appendChild(masonryContainer);
@@ -612,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const portraitPhoto = aboutImageColumn.querySelector('.about-photo.portrait');
 
         if (portraitPhoto) {
-            portraitPhoto.style.backgroundImage = 'url(\'images/about/portrait.jpg\')';
+            portraitPhoto.style.backgroundImage = 'url(\'images/about/portrait.webp\')';
             portraitPhoto.style.backgroundSize = 'cover';
             portraitPhoto.style.backgroundPosition = 'center';
         }
