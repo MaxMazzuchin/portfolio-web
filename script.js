@@ -87,14 +87,14 @@ const projectsData = [
         title: "TOUCHDESIGNER",
         role: "Motion Design / TouchDesigner",
         slug: "touchdesigner",
-        coverImage: "assets/projects/touchdesigner/video (1).mp4",
+        coverImage: "assets/projects/touchdesigner/video-1.mp4",
         galleryItems: [
-            "assets/projects/touchdesigner/video (2).mp4",
-            "assets/projects/touchdesigner/video (3).mp4",
-            "assets/projects/touchdesigner/video (4).mp4",
-            "assets/projects/touchdesigner/video (5).mp4",
-            "assets/projects/touchdesigner/video (6).mp4",
-            "assets/projects/touchdesigner/video (7).mp4"
+            "assets/projects/touchdesigner/video-2.mp4",
+            "assets/projects/touchdesigner/video-3.mp4",
+            "assets/projects/touchdesigner/video-4.mp4",
+            "assets/projects/touchdesigner/video-5.mp4",
+            "assets/projects/touchdesigner/video-6.mp4",
+            "assets/projects/touchdesigner/video-7.mp4"
         ],
         description: "Piezas generativas y en vivo hechas en TouchDesigner: loops, sistemas reactivos y salidas para pantalla. El foco está en motion claro, ritmo y una estética directa, sin ornamentos de más.",
         type: "Motion Design / TouchDesigner"
@@ -328,7 +328,7 @@ function renderGalleryLegacyLayout(galleryContainer, project) {
         const verticalContainer = document.createElement('div');
         verticalContainer.className = 'gallery-vertical';
         for (let i = 1; i <= project.verticalImgCount; i++) {
-            const url = `${project.imageFolder}/image (${i}).jpg`;
+            const url = `${project.imageFolder}/image-${i}.jpg`;
             appendGalleryMedia(verticalContainer, url, project.title, 'Gallery image', i);
         }
         galleryContainer.appendChild(verticalContainer);
@@ -338,7 +338,7 @@ function renderGalleryLegacyLayout(galleryContainer, project) {
         const masonryContainer = document.createElement('div');
         masonryContainer.className = 'gallery-masonry';
         for (let i = 1; i <= project.masonryImgCount; i++) {
-            const url = `${project.imageFolder}/grid (${i}).jpg`;
+            const url = `${project.imageFolder}/grid-${i}.jpg`;
             appendGalleryMedia(masonryContainer, url, project.title, 'Grid image', i);
         }
         galleryContainer.appendChild(masonryContainer);
