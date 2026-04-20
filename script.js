@@ -265,10 +265,14 @@ function rootAssetPath(url) {
 }
 
 function getCurrentProjectSlug() {
-    const path = window.location.pathname.replace(/\/+$/, '');
-    const slug = path.split('/').pop();
+    const path = window.location.pathname;
+    let slug = path.split('/').pop();
+    if (slug === '') {
+        slug = path.replace(/\/+$/, '').split('/').pop() || '';
+    }
     if (!slug || slug === 'project') {
-        if (/project\.html$/i.test(path)) {
+        const trimmed = path.replace(/\/+$/, '');
+        if (/project\.html$/i.test(trimmed)) {
             return new URLSearchParams(window.location.search).get('slug');
         }
         return null;
@@ -572,8 +576,11 @@ document.addEventListener('DOMContentLoaded', () => {
             qSlug &&
             (window.location.protocol === 'http:' || window.location.protocol === 'https:')
         ) {
-            const pathForCompare = window.location.pathname.replace(/\/+$/, '');
-            const segment = pathForCompare.split('/').pop();
+            const pathForCompare = window.location.pathname;
+            let segment = pathForCompare.split('/').pop();
+            if (segment === '') {
+                segment = pathForCompare.replace(/\/+$/, '').split('/').pop() || '';
+            }
             let pathSlug = null;
             if (segment && segment !== 'project' && !/\.html$/i.test(segment)) {
                 try {
