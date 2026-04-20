@@ -266,18 +266,21 @@ function rootAssetPath(url) {
 
 function getCurrentProjectSlug() {
     const path = window.location.pathname.replace(/\/+$/, '');
-    const match = path.match(/\/project\/(.+)$/);
-    if (match) {
-        try {
-            return decodeURIComponent(match[1]);
-        } catch {
-            return match[1];
+    const slug = path.split('/').pop();
+    if (!slug || slug === 'project') {
+        if (/project\.html$/i.test(path)) {
+            return new URLSearchParams(window.location.search).get('slug');
         }
+        return null;
     }
-    if (/project\.html$/i.test(path)) {
+    if (/project\.html$/i.test(slug)) {
         return new URLSearchParams(window.location.search).get('slug');
     }
-    return null;
+    try {
+        return decodeURIComponent(slug);
+    } catch {
+        return slug;
+    }
 }
 
 // =========================================
@@ -569,17 +572,17 @@ document.addEventListener('DOMContentLoaded', () => {
             qSlug &&
             (window.location.protocol === 'http:' || window.location.protocol === 'https:')
         ) {
-            const path = window.location.pathname.replace(/\/+$/, '');
-            const m = path.match(/\/project\/(.+)$/);
-            let onCleanPath = false;
-            if (m) {
+            const pathForCompare = window.location.pathname.replace(/\/+$/, '');
+            const segment = pathForCompare.split('/').pop();
+            let pathSlug = null;
+            if (segment && segment !== 'project' && !/\.html$/i.test(segment)) {
                 try {
-                    onCleanPath = decodeURIComponent(m[1]) === qSlug;
+                    pathSlug = decodeURIComponent(segment);
                 } catch {
-                    onCleanPath = m[1] === qSlug;
+                    pathSlug = segment;
                 }
             }
-            if (!onCleanPath) {
+            if (pathSlug !== qSlug) {
                 window.location.replace(
                     `${window.location.origin}/project/${encodeURIComponent(qSlug)}`
                 );
