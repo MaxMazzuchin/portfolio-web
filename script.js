@@ -80,7 +80,7 @@ const projectsData = [
         imageFolder: "images/projects/nyro",
         description: "Identidad de marca para Nyro, una empresa de analytics orientada a la toma de decisiones basada en datos. El desafío fue darle forma visual al concepto del equipo sin caer en los clichés de la competencia.",
         type: "Dirección de arte / Identidad de marca",
-        verticalImgCount: 11,
+        verticalImgCount: 10,
         masonryImgCount: 0
     },
     {
