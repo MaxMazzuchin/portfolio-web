@@ -256,43 +256,11 @@ function isLightboxOpen() {
     return lightbox && lightbox.classList.contains('is-open');
 }
 
-/** Media desde la raíz del sitio (necesario en rutas tipo /project/:slug). */
-function rootAssetPath(url) {
-    if (url == null || url === '') return url;
-    const s = String(url);
-    if (/^(https?:|data:)/i.test(s) || s.startsWith('/')) return s;
-    return `/${s.replace(/^\//, '')}`;
-}
-
-function getCurrentProjectSlug() {
-    const path = window.location.pathname;
-    let slug = path.split('/').pop();
-    if (slug === '') {
-        slug = path.replace(/\/+$/, '').split('/').pop() || '';
-    }
-    if (!slug || slug === 'project') {
-        const trimmed = path.replace(/\/+$/, '');
-        if (/project\.html$/i.test(trimmed)) {
-            return new URLSearchParams(window.location.search).get('slug');
-        }
-        return null;
-    }
-    if (/project\.html$/i.test(slug)) {
-        return new URLSearchParams(window.location.search).get('slug');
-    }
-    try {
-        return decodeURIComponent(slug);
-    } catch {
-        return slug;
-    }
-}
-
 // =========================================
 // 2B. FUNCIÓN PARA RENDERIZAR GALERÍA
 // =========================================
 function coverImageUrl(project) {
-    const raw = project.coverImage || `${project.imageFolder}/cover.webp`;
-    return rootAssetPath(raw);
+    return project.coverImage || `${project.imageFolder}/cover.webp`;
 }
 
 function pushLightboxItem(src, media) {
@@ -323,7 +291,6 @@ function appendGalleryCover(coverItem, project) {
 }
 
 function appendGalleryMedia(parent, url, projectTitle, kindLabel, index) {
-    url = rootAssetPath(url);
     const isVideo = isVideoUrl(url);
     const idx = pushLightboxItem(url, isVideo ? 'video' : 'image');
 
@@ -423,7 +390,8 @@ function renderGallery(gallery, project) {
 // =========================================
 function createProjectCard(project) {
     const card = document.createElement('a');
-    card.href = `/project/${project.slug}`;
+    // Conecta la grilla con la plantilla pasando el slug por la URL
+    card.href = `project.html?slug=${project.slug}`;
     card.className = 'project-card';
 
     const media = document.createElement('div');
@@ -522,8 +490,9 @@ function createOtherProjectCard(project) {
     card.appendChild(typeElement);
     card.appendChild(titleElement);
     
+    // Add click event to navigate to project
     card.addEventListener('click', () => {
-        window.location.href = `/project/${project.slug}`;
+        window.location.href = `project.html?slug=${project.slug}`;
     });
     card.style.cursor = 'pointer';
     
@@ -571,55 +540,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // C. Renderizado Dinámico para Plantilla de Proyecto (project.html)
     const dynamicHeader = document.getElementById('dynamic-header');
     if (dynamicHeader) {
-        const qSlug = new URLSearchParams(window.location.search).get('slug');
-        if (
-            qSlug &&
-            (window.location.protocol === 'http:' || window.location.protocol === 'https:')
-        ) {
-            const pathForCompare = window.location.pathname;
-            let segment = pathForCompare.split('/').pop();
-            if (segment === '') {
-                segment = pathForCompare.replace(/\/+$/, '').split('/').pop() || '';
-            }
-            let pathSlug = null;
-            if (segment && segment !== 'project' && !/\.html$/i.test(segment)) {
-                try {
-                    pathSlug = decodeURIComponent(segment);
-                } catch {
-                    pathSlug = segment;
-                }
-            }
-            if (pathSlug !== qSlug) {
-                window.location.replace(
-                    `${window.location.origin}/project/${encodeURIComponent(qSlug)}`
-                );
-                return;
-            }
-        }
-
-        const currentSlug = getCurrentProjectSlug();
+        // Lee la URL para saber qué proyecto abrir (ej: ?slug=sin-datos)
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSlug = urlParams.get('slug');
 
         const project = projectsData.find(p => p.slug === currentSlug);
 
         if (project) {
-            const pageTitle = `${project.title} | Máximo Mazzuchin | Visual Designer`;
-            document.title = pageTitle;
-            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-                const path = window.location.pathname.replace(/\/+$/, '') || '/';
-                const shareUrl = `${window.location.origin}${path}`;
-                const setMetaContent = (selector, value) => {
-                    const el = document.querySelector(selector);
-                    if (el) el.setAttribute('content', value);
-                };
-                setMetaContent('meta[property="og:title"]', pageTitle);
-                setMetaContent('meta[name="twitter:title"]', pageTitle);
-                setMetaContent('meta[property="og:url"]', shareUrl);
-                setMetaContent('meta[property="og:description"]', project.description);
-                setMetaContent('meta[name="twitter:description"]', project.description);
-                const metaDesc = document.querySelector('meta[name="description"]');
-                if (metaDesc) metaDesc.setAttribute('content', project.description);
-            }
-
             const titleWrapClasses = ['title-wrapper'];
             if (project.slug === 'i-life' || project.slug === '100-posters') {
                 titleWrapClasses.push('title-wrapper--single-line');
@@ -670,7 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="title-wrapper">
                     <h1 class="title-giant">PROYECTO NO ENCONTRADO</h1>
                 </div>
-                <a href="/work" class="back-btn">Back to Work</a>
+                <a href="work.html" class="back-btn">Back to Work</a>
             `;
         }
 
@@ -684,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const portraitPhoto = aboutImageColumn.querySelector('.about-photo.portrait');
 
         if (portraitPhoto) {
-            portraitPhoto.style.backgroundImage = `url('${rootAssetPath('images/about/portrait.webp')}')`;
+            portraitPhoto.style.backgroundImage = 'url(\'images/about/portrait.webp\')';
             portraitPhoto.style.backgroundSize = 'cover';
             portraitPhoto.style.backgroundPosition = 'center';
         }
