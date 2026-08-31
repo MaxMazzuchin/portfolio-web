@@ -206,11 +206,19 @@ function resetLightboxStageTransform() {
     if (stage) stage.style.transform = 'translate3d(0,0,0) scale(1)';
 }
 
+function updateVideoToggleBtn(isPaused) {
+    const btn = document.getElementById('video-toggle-btn');
+    if (!btn) return;
+    btn.textContent = isPaused ? '▶' : '❚❚';
+    btn.setAttribute('aria-label', isPaused ? 'Play video' : 'Pause video');
+}
+
 function syncLightboxMedia() {
     const item = lightboxItems[currentLightboxIndex];
     const stage = getLightboxStage();
     const lightboxImg = document.getElementById('lightbox-img');
     const lightboxVideo = document.getElementById('lightbox-video');
+    const videoToggleBtn = document.getElementById('video-toggle-btn');
     if (!item || !stage || !lightboxImg || !lightboxVideo) return;
 
     if (item.media === 'video') {
@@ -221,11 +229,14 @@ function syncLightboxMedia() {
         lightboxVideo.src = item.src;
         lightboxVideo.load();
         lightboxVideo.play().catch(() => {});
+        updateVideoToggleBtn(false);
+        if (videoToggleBtn) videoToggleBtn.classList.remove('lightbox-video-toggle--hidden');
     } else {
         resetLightboxVideo(lightboxVideo);
         lightboxVideo.classList.add('lightbox-asset--hidden');
         lightboxImg.classList.remove('lightbox-asset--hidden');
         lightboxImg.src = item.src;
+        if (videoToggleBtn) videoToggleBtn.classList.add('lightbox-video-toggle--hidden');
     }
 }
 
@@ -445,7 +456,7 @@ function createProjectCard(project) {
     const infoDiv = document.createElement('div');
     infoDiv.className = 'project-info';
     infoDiv.innerHTML = `
-        <h3>(${project.title})</h3>
+        <h2>(${project.title})</h2>
         <p class="project-card-type">${project.type}</p>
     `;
 
@@ -458,7 +469,8 @@ function createProjectCard(project) {
 // 2B. CREAR TARJETA PARA "OTHER PROJECTS"
 // =========================================
 function createOtherProjectCard(project) {
-    const card = document.createElement('div');
+    const card = document.createElement('a');
+    card.href = `project.html?slug=${project.slug}`;
     card.className = 'other-project-card';
 
     const media = document.createElement('div');
@@ -489,13 +501,7 @@ function createOtherProjectCard(project) {
     card.appendChild(media);
     card.appendChild(typeElement);
     card.appendChild(titleElement);
-    
-    // Add click event to navigate to project
-    card.addEventListener('click', () => {
-        window.location.href = `project.html?slug=${project.slug}`;
-    });
-    card.style.cursor = 'pointer';
-    
+
     return card;
 }
 
@@ -565,6 +571,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
+            // Título/descripción de la pestaña y meta description: genéricos por
+            // defecto (plantilla estática), se ajustan al proyecto ya cargado.
+            document.title = `${project.title} | Máximo Mazzuchin | Visual Designer`;
+            const metaDescription = document.querySelector('meta[name="description"]');
+            if (metaDescription) metaDescription.setAttribute('content', project.description);
+
             // Llena la sección de información del proyecto (descripción, tipo)
             const projectInfo = document.getElementById('project-info');
             if (projectInfo) {
@@ -623,6 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
     const lightboxStage = document.getElementById('lightbox-stage');
+    const videoToggleBtn = document.getElementById('video-toggle-btn');
 
     const stop = (e) => e.stopPropagation();
 
@@ -649,6 +662,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (lightboxStage) {
         lightboxStage.addEventListener('click', onLightboxStageClick);
+    }
+
+    if (videoToggleBtn) {
+        videoToggleBtn.addEventListener('click', (e) => {
+            stop(e);
+            const video = document.getElementById('lightbox-video');
+            if (!video) return;
+            if (video.paused) {
+                video.play().catch(() => {});
+                updateVideoToggleBtn(false);
+            } else {
+                video.pause();
+                updateVideoToggleBtn(true);
+            }
+        });
     }
 
     document.addEventListener('keydown', (e) => {
