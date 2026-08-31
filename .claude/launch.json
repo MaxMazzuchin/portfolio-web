@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "portfolio-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8934", "--directory", "/Users/maximo/Desktop/D. interactivo/Copia de portfolio-web"],
+      "port": 8934
+    }
+  ]
+}

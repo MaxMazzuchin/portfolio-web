@@ -88,6 +88,7 @@ const projectsData = [
         role: "Motion Design / TouchDesigner",
         slug: "touchdesigner",
         coverImage: "assets/projects/touchdesigner/video-1.mp4",
+        posterImage: "assets/projects/touchdesigner/cover.webp",
         galleryItems: [
             "assets/projects/touchdesigner/video-2.mp4",
             "assets/projects/touchdesigner/video-3.mp4",
@@ -138,16 +139,36 @@ function isVideoUrl(url) {
     return VIDEO_URL_RE.test(String(url || '').split('#')[0]);
 }
 
-function configureGalleryVideo(video) {
+function configureGalleryVideo(video, { eager = true } = {}) {
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    video.autoplay = true;
     video.disablePictureInPicture = true;
     video.controls = false;
-    video.preload = 'metadata';
     video.setAttribute('playsinline', '');
     video.setAttribute('disablePictureInPicture', '');
+    // Eager: hero/lightbox video, plays immediately. Lazy: gallery-body video,
+    // only fetched/played once it actually scrolls into view (see lazyVideoObserver).
+    video.autoplay = eager;
+    video.preload = eager ? 'metadata' : 'none';
+}
+
+/** Plays/pauses lazy gallery videos as they enter/leave the viewport, so a
+ * project page never downloads more than one screenful of video at a time. */
+let lazyVideoObserver = null;
+function getLazyVideoObserver() {
+    if (lazyVideoObserver) return lazyVideoObserver;
+    lazyVideoObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            const video = entry.target;
+            if (entry.isIntersecting) {
+                video.play().catch(() => {});
+            } else {
+                video.pause();
+            }
+        });
+    }, { rootMargin: '200px 0px' });
+    return lazyVideoObserver;
 }
 
 function resetLightboxVideo(video) {
@@ -263,6 +284,12 @@ function coverImageUrl(project) {
     return project.coverImage || `${project.imageFolder}/cover.webp`;
 }
 
+/** Static thumbnail for cards (work grid, home, "other projects") — never a
+ * video, so browsing the site never triggers autoplaying downloads. */
+function cardThumbnailUrl(project) {
+    return project.posterImage || coverImageUrl(project);
+}
+
 function pushLightboxItem(src, media) {
     lightboxItems.push({ src, media });
     return lightboxItems.length - 1;
@@ -298,9 +325,9 @@ function appendGalleryMedia(parent, url, projectTitle, kindLabel, index) {
         const wrap = document.createElement('div');
         wrap.className = 'gallery-cell gallery-cell--video';
         const video = document.createElement('video');
-        video.className = 'gallery-item gallery-video';
+        video.className = 'gallery-item gallery-video lazy-video';
         video.src = url;
-        configureGalleryVideo(video);
+        configureGalleryVideo(video, { eager: false });
         video.setAttribute('aria-label', `${projectTitle} — ${kindLabel} ${index}`);
         video.dataset.lbIndex = String(idx);
         video.style.cursor = 'pointer';
@@ -383,6 +410,10 @@ function renderGallery(gallery, project) {
     }
 
     gallery.appendChild(galleryContainer);
+
+    galleryContainer.querySelectorAll('video.lazy-video').forEach((video) => {
+        getLazyVideoObserver().observe(video);
+    });
 }
 
 // =========================================
@@ -397,35 +428,19 @@ function createProjectCard(project) {
     const media = document.createElement('div');
     media.className = 'project-card-media';
 
-    const imagePath = coverImageUrl(project);
+    const img = document.createElement('img');
+    img.className = 'project-image';
+    img.src = cardThumbnailUrl(project);
+    img.alt = `${project.title}`;
+    img.loading = 'lazy';
 
-    if (isVideoUrl(imagePath)) {
-        const video = document.createElement('video');
-        video.className = 'project-image project-card-cover-video';
-        video.src = imagePath;
-        configureGalleryVideo(video);
-        video.setAttribute('aria-label', project.title);
-        video.addEventListener('error', function onCoverVideoErr() {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'img-placeholder';
-            video.replaceWith(placeholder);
-        }, { once: true });
-        media.appendChild(video);
-    } else {
-        const img = document.createElement('img');
-        img.className = 'project-image';
-        img.src = imagePath;
-        img.alt = `${project.title}`;
-        img.loading = 'lazy';
+    img.onerror = function() {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'img-placeholder';
+        this.parentNode.replaceChild(placeholder, this);
+    };
 
-        img.onerror = function() {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'img-placeholder';
-            this.parentNode.replaceChild(placeholder, this);
-        };
-
-        media.appendChild(img);
-    }
+    media.appendChild(img);
 
     const infoDiv = document.createElement('div');
     infoDiv.className = 'project-info';
@@ -449,34 +464,19 @@ function createOtherProjectCard(project) {
     const media = document.createElement('div');
     media.className = 'other-project-card-media';
 
-    const coverPath = coverImageUrl(project);
-    if (isVideoUrl(coverPath)) {
-        const video = document.createElement('video');
-        video.className = 'other-project-card-image other-project-card-cover-video';
-        video.src = coverPath;
-        configureGalleryVideo(video);
-        video.setAttribute('aria-label', project.title);
-        video.addEventListener('error', function onOtherCoverVideoErr() {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'img-placeholder';
-            video.replaceWith(placeholder);
-        }, { once: true });
-        media.appendChild(video);
-    } else {
-        const imageElement = document.createElement('img');
-        imageElement.className = 'other-project-card-image';
-        imageElement.src = coverPath;
-        imageElement.alt = project.title;
-        imageElement.loading = 'lazy';
+    const imageElement = document.createElement('img');
+    imageElement.className = 'other-project-card-image';
+    imageElement.src = cardThumbnailUrl(project);
+    imageElement.alt = project.title;
+    imageElement.loading = 'lazy';
 
-        imageElement.onerror = function() {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'img-placeholder';
-            this.parentNode.replaceChild(placeholder, this);
-        };
+    imageElement.onerror = function() {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'img-placeholder';
+        this.parentNode.replaceChild(placeholder, this);
+    };
 
-        media.appendChild(imageElement);
-    }
+    media.appendChild(imageElement);
 
     const titleElement = document.createElement('h3');
     titleElement.className = 'other-project-card-title';
