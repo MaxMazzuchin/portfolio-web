@@ -1,0 +1,24 @@
+# Static assets (images, video): the browser can reuse its own cached copy
+# for a week instead of re-checking with the server on every page/visit.
+# Kept short of a year since files are replaced in place (no cache-busting
+# filenames yet) — if an image/video is ever swapped under the same name,
+# this bounds how long a returning visitor can see the stale one.
+/images/*
+  Cache-Control: public, max-age=604800
+
+/assets/*
+  Cache-Control: public, max-age=604800
+
+# CSS/JS change more often during active development, so keep this short.
+/*.css
+  Cache-Control: public, max-age=3600
+
+/*.js
+  Cache-Control: public, max-age=3600
+
+# HTML always revalidates so page edits/navigation changes show up right away.
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate
