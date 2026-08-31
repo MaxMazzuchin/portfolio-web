@@ -80,7 +80,7 @@ const projectsData = [
         imageFolder: "images/projects/nyro",
         description: "Identidad de marca para Nyro, una empresa de analytics orientada a la toma de decisiones basada en datos. El desafío fue darle forma visual al concepto del equipo sin caer en los clichés de la competencia.",
         type: "Dirección de arte / Identidad de marca",
-        verticalImgCount: 10,
+        verticalImgCount: 9,
         masonryImgCount: 0
     },
     {
@@ -396,6 +396,9 @@ function renderVideoCarousel(container, project) {
     const stage = document.createElement('div');
     stage.className = 'video-carousel-stage';
 
+    const videoWrap = document.createElement('div');
+    videoWrap.className = 'video-carousel-video-wrap';
+
     const video = document.createElement('video');
     video.className = 'video-carousel-video';
     configureGalleryVideo(video, { eager: false });
@@ -405,8 +408,9 @@ function renderVideoCarousel(container, project) {
     playPauseBtn.type = 'button';
     playPauseBtn.className = 'video-carousel-playpause';
 
-    stage.appendChild(video);
-    stage.appendChild(playPauseBtn);
+    videoWrap.appendChild(video);
+    videoWrap.appendChild(playPauseBtn);
+    stage.appendChild(videoWrap);
 
     const controls = document.createElement('div');
     controls.className = 'video-carousel-controls';
