@@ -383,18 +383,94 @@ function renderGalleryLegacyLayout(galleryContainer, project) {
     }
 }
 
+/** One-video-at-a-time carousel (used for video galleryItems, e.g. TouchDesigner):
+ * only the piece currently on screen ever has a src, so browsing never
+ * downloads more than one video no matter how many pieces the project has. */
+function renderVideoCarousel(container, project) {
+    const items = project.galleryItems;
+    let index = 0;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'video-carousel';
+
+    const stage = document.createElement('div');
+    stage.className = 'video-carousel-stage';
+
+    const video = document.createElement('video');
+    video.className = 'video-carousel-video';
+    configureGalleryVideo(video, { eager: false });
+    video.preload = 'auto';
+
+    const playPauseBtn = document.createElement('button');
+    playPauseBtn.type = 'button';
+    playPauseBtn.className = 'video-carousel-playpause';
+
+    stage.appendChild(video);
+    stage.appendChild(playPauseBtn);
+
+    const controls = document.createElement('div');
+    controls.className = 'video-carousel-controls';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.className = 'video-carousel-nav';
+    prevBtn.textContent = '←';
+    prevBtn.setAttribute('aria-label', 'Previous piece');
+
+    const counter = document.createElement('span');
+    counter.className = 'video-carousel-counter';
+
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.className = 'video-carousel-nav';
+    nextBtn.textContent = '→';
+    nextBtn.setAttribute('aria-label', 'Next piece');
+
+    controls.appendChild(prevBtn);
+    controls.appendChild(counter);
+    controls.appendChild(nextBtn);
+
+    wrap.appendChild(stage);
+    wrap.appendChild(controls);
+    container.appendChild(wrap);
+
+    function setPlayPauseLabel(isPaused) {
+        playPauseBtn.textContent = isPaused ? '▶' : '❚❚';
+        playPauseBtn.setAttribute('aria-label', isPaused ? 'Play video' : 'Pause video');
+    }
+
+    function loadIndex(i) {
+        index = (i + items.length) % items.length;
+        video.src = items[index];
+        video.setAttribute('aria-label', `${project.title} — Piece ${index + 1}`);
+        video.load();
+        video.play().catch(() => {});
+        setPlayPauseLabel(false);
+        counter.textContent = `${index + 1} / ${items.length}`;
+    }
+
+    prevBtn.addEventListener('click', () => loadIndex(index - 1));
+    nextBtn.addEventListener('click', () => loadIndex(index + 1));
+    playPauseBtn.addEventListener('click', () => {
+        if (video.paused) {
+            video.play().catch(() => {});
+            setPlayPauseLabel(false);
+        } else {
+            video.pause();
+            setPlayPauseLabel(true);
+        }
+    });
+
+    loadIndex(0);
+}
+
 function renderGalleryItemsLayout(galleryContainer, project) {
     const coverItem = document.createElement('div');
     coverItem.className = 'gallery-cover';
     appendGalleryCover(coverItem, project);
     galleryContainer.appendChild(coverItem);
 
-    const verticalContainer = document.createElement('div');
-    verticalContainer.className = 'gallery-vertical';
-    project.galleryItems.forEach((url, i) => {
-        appendGalleryMedia(verticalContainer, url, project.title, 'Piece', i + 1);
-    });
-    galleryContainer.appendChild(verticalContainer);
+    renderVideoCarousel(galleryContainer, project);
 }
 
 function renderGallery(gallery, project) {
