@@ -513,7 +513,32 @@ function shuffleArray(array) {
 // 3. LÓGICA DE RUTAS E INYECCIÓN DE DATOS
 // =========================================
 document.addEventListener('DOMContentLoaded', () => {
-    
+
+    // Intro (index.html): plays once per browser session, skippable.
+    const introOverlay = document.getElementById('intro-overlay');
+    if (introOverlay) {
+        let alreadyShown = false;
+        try {
+            alreadyShown = sessionStorage.getItem('introShown') === '1';
+        } catch (e) {}
+
+        if (alreadyShown) {
+            introOverlay.remove();
+        } else {
+            document.body.style.overflow = 'hidden';
+            const introVideo = document.getElementById('intro-video');
+            const introSkipBtn = document.getElementById('intro-skip-btn');
+            const endIntro = () => {
+                try { sessionStorage.setItem('introShown', '1'); } catch (e) {}
+                introOverlay.classList.add('intro-overlay--hidden');
+                document.body.style.overflow = '';
+                setTimeout(() => introOverlay.remove(), 500);
+            };
+            if (introVideo) introVideo.addEventListener('ended', endIntro);
+            if (introSkipBtn) introSkipBtn.addEventListener('click', endIntro);
+        }
+    }
+
     // A. Renderizado para la Home (index.html)
     const homeGrid = document.getElementById('projects-grid');
     if (homeGrid) {

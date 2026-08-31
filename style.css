@@ -79,6 +79,66 @@ a:focus-visible {
     outline-offset: 3px;
 }
 
+/* =========================================
+   INTRO (home only, once per session, skippable)
+   ========================================= */
+.intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s ease;
+}
+
+.intro-overlay--hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.intro-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+@media (min-width: 769px) {
+    .intro-video {
+        width: 85%;
+        height: 85%;
+    }
+}
+
+.intro-skip-btn {
+    position: absolute;
+    bottom: var(--spacing-md);
+    right: var(--spacing-md);
+    padding: 0.6rem 1.25rem;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: opacity 0.2s ease, border-color 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.intro-skip-btn:hover {
+    opacity: 0.7;
+    border-color: var(--text-secondary);
+}
+
+.intro-skip-btn:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+}
+
 .navbar {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
