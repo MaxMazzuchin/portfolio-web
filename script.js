@@ -206,19 +206,11 @@ function resetLightboxStageTransform() {
     if (stage) stage.style.transform = 'translate3d(0,0,0) scale(1)';
 }
 
-function updateVideoToggleBtn(isPaused) {
-    const btn = document.getElementById('video-toggle-btn');
-    if (!btn) return;
-    btn.textContent = isPaused ? '▶' : '❚❚';
-    btn.setAttribute('aria-label', isPaused ? 'Play video' : 'Pause video');
-}
-
 function syncLightboxMedia() {
     const item = lightboxItems[currentLightboxIndex];
     const stage = getLightboxStage();
     const lightboxImg = document.getElementById('lightbox-img');
     const lightboxVideo = document.getElementById('lightbox-video');
-    const videoToggleBtn = document.getElementById('video-toggle-btn');
     if (!item || !stage || !lightboxImg || !lightboxVideo) return;
 
     if (item.media === 'video') {
@@ -229,14 +221,11 @@ function syncLightboxMedia() {
         lightboxVideo.src = item.src;
         lightboxVideo.load();
         lightboxVideo.play().catch(() => {});
-        updateVideoToggleBtn(false);
-        if (videoToggleBtn) videoToggleBtn.classList.remove('lightbox-video-toggle--hidden');
     } else {
         resetLightboxVideo(lightboxVideo);
         lightboxVideo.classList.add('lightbox-asset--hidden');
         lightboxImg.classList.remove('lightbox-asset--hidden');
         lightboxImg.src = item.src;
-        if (videoToggleBtn) videoToggleBtn.classList.add('lightbox-video-toggle--hidden');
     }
 }
 
@@ -386,95 +375,18 @@ function renderGalleryLegacyLayout(galleryContainer, project) {
 /** One-video-at-a-time carousel (used for video galleryItems, e.g. TouchDesigner):
  * only the piece currently on screen ever has a src, so browsing never
  * downloads more than one video no matter how many pieces the project has. */
-function renderVideoCarousel(container, project) {
-    const items = project.galleryItems;
-    let index = 0;
-
-    const wrap = document.createElement('div');
-    wrap.className = 'video-carousel';
-
-    const stage = document.createElement('div');
-    stage.className = 'video-carousel-stage';
-
-    const videoWrap = document.createElement('div');
-    videoWrap.className = 'video-carousel-video-wrap';
-
-    const video = document.createElement('video');
-    video.className = 'video-carousel-video';
-    configureGalleryVideo(video, { eager: false });
-    video.preload = 'auto';
-
-    const playPauseBtn = document.createElement('button');
-    playPauseBtn.type = 'button';
-    playPauseBtn.className = 'video-carousel-playpause';
-
-    videoWrap.appendChild(video);
-    videoWrap.appendChild(playPauseBtn);
-    stage.appendChild(videoWrap);
-
-    const controls = document.createElement('div');
-    controls.className = 'video-carousel-controls';
-
-    const prevBtn = document.createElement('button');
-    prevBtn.type = 'button';
-    prevBtn.className = 'video-carousel-nav';
-    prevBtn.textContent = '←';
-    prevBtn.setAttribute('aria-label', 'Previous piece');
-
-    const counter = document.createElement('span');
-    counter.className = 'video-carousel-counter';
-
-    const nextBtn = document.createElement('button');
-    nextBtn.type = 'button';
-    nextBtn.className = 'video-carousel-nav';
-    nextBtn.textContent = '→';
-    nextBtn.setAttribute('aria-label', 'Next piece');
-
-    controls.appendChild(prevBtn);
-    controls.appendChild(counter);
-    controls.appendChild(nextBtn);
-
-    wrap.appendChild(stage);
-    wrap.appendChild(controls);
-    container.appendChild(wrap);
-
-    function setPlayPauseLabel(isPaused) {
-        playPauseBtn.textContent = isPaused ? '▶' : '❚❚';
-        playPauseBtn.setAttribute('aria-label', isPaused ? 'Play video' : 'Pause video');
-    }
-
-    function loadIndex(i) {
-        index = (i + items.length) % items.length;
-        video.src = items[index];
-        video.setAttribute('aria-label', `${project.title} — Piece ${index + 1}`);
-        video.load();
-        video.play().catch(() => {});
-        setPlayPauseLabel(false);
-        counter.textContent = `${index + 1} / ${items.length}`;
-    }
-
-    prevBtn.addEventListener('click', () => loadIndex(index - 1));
-    nextBtn.addEventListener('click', () => loadIndex(index + 1));
-    playPauseBtn.addEventListener('click', () => {
-        if (video.paused) {
-            video.play().catch(() => {});
-            setPlayPauseLabel(false);
-        } else {
-            video.pause();
-            setPlayPauseLabel(true);
-        }
-    });
-
-    loadIndex(0);
-}
-
 function renderGalleryItemsLayout(galleryContainer, project) {
     const coverItem = document.createElement('div');
     coverItem.className = 'gallery-cover';
     appendGalleryCover(coverItem, project);
     galleryContainer.appendChild(coverItem);
 
-    renderVideoCarousel(galleryContainer, project);
+    const verticalContainer = document.createElement('div');
+    verticalContainer.className = 'gallery-vertical';
+    project.galleryItems.forEach((url, i) => {
+        appendGalleryMedia(verticalContainer, url, project.title, 'Piece', i + 1);
+    });
+    galleryContainer.appendChild(verticalContainer);
 }
 
 function renderGallery(gallery, project) {
@@ -715,7 +627,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
     const lightboxStage = document.getElementById('lightbox-stage');
-    const videoToggleBtn = document.getElementById('video-toggle-btn');
 
     const stop = (e) => e.stopPropagation();
 
@@ -742,21 +653,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (lightboxStage) {
         lightboxStage.addEventListener('click', onLightboxStageClick);
-    }
-
-    if (videoToggleBtn) {
-        videoToggleBtn.addEventListener('click', (e) => {
-            stop(e);
-            const video = document.getElementById('lightbox-video');
-            if (!video) return;
-            if (video.paused) {
-                video.play().catch(() => {});
-                updateVideoToggleBtn(false);
-            } else {
-                video.pause();
-                updateVideoToggleBtn(true);
-            }
-        });
     }
 
     document.addEventListener('keydown', (e) => {

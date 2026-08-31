@@ -778,7 +778,10 @@ a:focus-visible {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* contain, not cover: pieces come in mixed aspect ratios (16:9, 4:3,
+       1:1) and the cell reserves a fixed 16:9 box so lazy-loading has a
+       non-zero target before metadata loads -- never crop to fill it. */
+    object-fit: contain;
     object-position: center;
     pointer-events: auto;
 }
@@ -834,127 +837,6 @@ a:focus-visible {
 
 .gallery-vertical .gallery-cell--video {
     margin-bottom: 0;
-}
-
-/* =========================================
-   VIDEO CAROUSEL (one video at a time, e.g. TouchDesigner pieces)
-   ========================================= */
-.video-carousel {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.video-carousel-stage {
-    width: 100%;
-    max-height: 70vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 4px;
-    background-color: #1a1a1a;
-}
-
-/* Shrinks to the video's own rendered size, so the play/pause button
-   (absolute, positioned against this) sits on the video itself, not on
-   empty backdrop when a piece isn't 16:9. */
-.video-carousel-video-wrap {
-    position: relative;
-    display: inline-flex;
-    max-width: 100%;
-    max-height: 70vh;
-}
-
-/* object-fit: contain (not cover) -- pieces come in mixed aspect ratios
-   (16:9, 4:3, 1:1); never crop, always show the full frame. */
-.video-carousel-video {
-    display: block;
-    max-width: 100%;
-    max-height: 70vh;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-}
-
-.video-carousel-playpause {
-    position: absolute;
-    bottom: var(--spacing-sm);
-    left: 50%;
-    transform: translate3d(-50%, 0, 0);
-    z-index: 2;
-    width: 2.75rem;
-    height: 2.75rem;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-main);
-    font-size: 0.85rem;
-    line-height: 1;
-    color: var(--text-primary);
-    background: rgba(0, 0, 0, 0.45);
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: opacity 0.2s ease, background 0.2s ease;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.video-carousel-playpause:hover {
-    background: rgba(0, 0, 0, 0.65);
-}
-
-.video-carousel-playpause:focus-visible {
-    outline: 1px solid var(--text-muted);
-    outline-offset: 2px;
-}
-
-.video-carousel-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.75rem;
-}
-
-.video-carousel-nav {
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-main);
-    font-size: 1.4rem;
-    line-height: 1;
-    color: var(--text-primary);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.video-carousel-nav:hover {
-    opacity: 0.7;
-}
-
-.video-carousel-nav:focus-visible {
-    outline: 1px solid var(--text-muted);
-    outline-offset: 2px;
-}
-
-.video-carousel-counter {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    letter-spacing: 0.05em;
-    min-width: 3.5rem;
-    text-align: center;
 }
 
 .other-projects {
@@ -1204,45 +1086,6 @@ a:focus-visible {
 }
 
 .lightbox-nav.hidden {
-    display: none;
-}
-
-.lightbox-video-toggle {
-    position: absolute;
-    bottom: var(--spacing-md);
-    left: 50%;
-    transform: translate3d(-50%, 0, 0);
-    z-index: 2;
-    width: 3rem;
-    height: 3rem;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-main);
-    font-size: 0.9rem;
-    line-height: 1;
-    color: var(--text-primary);
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.lightbox-video-toggle:hover {
-    opacity: 0.75;
-}
-
-.lightbox-video-toggle:focus-visible {
-    outline: 1px solid var(--text-muted);
-    outline-offset: 2px;
-}
-
-.lightbox-video-toggle--hidden {
     display: none;
 }
 
