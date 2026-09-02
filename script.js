@@ -527,14 +527,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             document.body.style.overflow = 'hidden';
             const introVideo = document.getElementById('intro-video');
-            const introAudio = document.getElementById('intro-audio');
             const introSkipBtn = document.getElementById('intro-skip-btn');
-            // Browsers block unmuted autoplay for a visitor's first interaction-free
-            // load; this is best-effort and silently no-ops when blocked.
-            if (introAudio) introAudio.play().catch(() => {});
             const endIntro = () => {
                 try { sessionStorage.setItem('introShown', '1'); } catch (e) {}
-                if (introAudio) introAudio.pause();
                 introOverlay.classList.add('intro-overlay--hidden');
                 document.body.style.overflow = '';
                 setTimeout(() => introOverlay.remove(), 500);
