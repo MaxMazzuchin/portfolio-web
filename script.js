@@ -1,5 +1,13 @@
 // =========================================
+// 0. CONFIG
+// =========================================
+// ID de Google Analytics 4 (formato "G-XXXXXXXXXX"). Vacío = sin tracking.
+const GA_ID = '';
+
+// =========================================
 // 1. BASE DE DATOS (CMS)
+// Después de agregar/editar un proyecto: `node build-projects.js`
+// (Netlify lo corre solo en cada deploy).
 // =========================================
 const projectsData = [
     {
@@ -113,6 +121,20 @@ function projectHeroTitleHtml(project) {
         return `(TOUCH<br>DESIGNER)`;
     }
     return `(${project.title})`;
+}
+
+/** Header gigante del proyecto. Lo usan esta página y build-projects.js (pre-render). */
+function projectHeaderHtml(project) {
+    const classes = ['title-wrapper'];
+    if (project.slug === 'i-life' || project.slug === '100-posters') classes.push('title-wrapper--single-line');
+    if (project.slug === 'exp-grafica') classes.push('title-wrapper--fit');
+    if (project.slug === 'touchdesigner') classes.push('title-wrapper--touchdesigner');
+    return `<div class="${classes.join(' ')}"><h1 class="title-giant">${projectHeroTitleHtml(project)}</h1></div>`;
+}
+
+/** Página estática del proyecto (generada por build-projects.js). */
+function projectUrl(project) {
+    return `proyectos/${project.slug}.html`;
 }
 
 /** After innerHTML injection, nudge layout so .title-wrapper slideUp runs once (no Intersection Observer). */
@@ -424,8 +446,7 @@ function renderGallery(gallery, project) {
 // =========================================
 function createProjectCard(project) {
     const card = document.createElement('a');
-    // Conecta la grilla con la plantilla pasando el slug por la URL
-    card.href = `project.html?slug=${project.slug}`;
+    card.href = projectUrl(project);
     card.className = 'project-card';
 
     const media = document.createElement('div');
@@ -434,7 +455,7 @@ function createProjectCard(project) {
     const img = document.createElement('img');
     img.className = 'project-image';
     img.src = cardThumbnailUrl(project);
-    img.alt = `${project.title}`;
+    img.alt = `${project.title} — ${project.type}`;
     img.loading = 'lazy';
 
     img.onerror = function() {
@@ -462,7 +483,7 @@ function createProjectCard(project) {
 // =========================================
 function createOtherProjectCard(project) {
     const card = document.createElement('a');
-    card.href = `project.html?slug=${project.slug}`;
+    card.href = projectUrl(project);
     card.className = 'other-project-card';
 
     const media = document.createElement('div');
@@ -514,6 +535,26 @@ function shuffleArray(array) {
 // =========================================
 document.addEventListener('DOMContentLoaded', () => {
 
+    // Google Analytics 4 (solo si GA_ID está cargado arriba de todo).
+    if (GA_ID) {
+        const gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+        document.head.appendChild(gaScript);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        window.gtag('js', new Date());
+        window.gtag('config', GA_ID);
+
+        // Conversiones: clic en el email (lead) o en Instagram.
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="mailto:"], a[href*="instagram.com"]');
+            if (!link) return;
+            const isMail = link.href.startsWith('mailto:');
+            window.gtag('event', isMail ? 'generate_lead' : 'click_instagram', { link_url: link.href });
+        });
+    }
+
     // Intro (index.html): plays once per browser session, skippable.
     const introOverlay = document.getElementById('intro-overlay');
     if (introOverlay) {
@@ -534,7 +575,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.style.overflow = '';
                 setTimeout(() => introOverlay.remove(), 500);
             };
-            if (introVideo) introVideo.addEventListener('ended', endIntro);
+            if (introVideo) {
+                introVideo.addEventListener('ended', endIntro);
+                // Autoplay bloqueado (iOS en modo ahorro), error de red o video
+                // trabado: nunca dejar al visitante frente a una pantalla negra.
+                introVideo.addEventListener('error', endIntro);
+                const playing = introVideo.play();
+                if (playing) playing.catch(endIntro);
+                setTimeout(endIntro, 8000); // ponytail: el intro dura ~5s; ajustar si cambia el video
+            }
             if (introSkipBtn) introSkipBtn.addEventListener('click', endIntro);
         }
     }
@@ -549,6 +598,16 @@ document.addEventListener('DOMContentLoaded', () => {
         featuredProjects.forEach(project => {
             homeGrid.appendChild(createProjectCard(project));
         });
+
+        // Adelanto del resto (se funde a negro sobre "VER MÁS"). 2 tarjetas = una
+        // fila en desktop; en móvil el CSS oculta la segunda.
+        const peekGrid = document.getElementById('projects-peek');
+        if (peekGrid) {
+            projectsData
+                .filter(p => !featuredSlugs.includes(p.slug))
+                .slice(0, 2)
+                .forEach(project => peekGrid.appendChild(createProjectCard(project)));
+        }
     }
 
     // B. Renderizado para la página Work (work.html)
@@ -560,39 +619,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // C. Renderizado Dinámico para Plantilla de Proyecto (project.html)
+    // C. Página de proyecto: proyectos/<slug>.html (estática, trae data-slug en
+    // <body> y el título/meta ya pre-renderizados) o project.html?slug=... (plantilla).
     const dynamicHeader = document.getElementById('dynamic-header');
     if (dynamicHeader) {
-        // Lee la URL para saber qué proyecto abrir (ej: ?slug=sin-datos)
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentSlug = urlParams.get('slug');
+        const currentSlug = document.body.dataset.slug ||
+            new URLSearchParams(window.location.search).get('slug');
 
         const project = projectsData.find(p => p.slug === currentSlug);
 
         if (project) {
-            const titleWrapClasses = ['title-wrapper'];
-            if (project.slug === 'i-life' || project.slug === '100-posters') {
-                titleWrapClasses.push('title-wrapper--single-line');
+            if (!dynamicHeader.querySelector('h1')) {
+                dynamicHeader.innerHTML = projectHeaderHtml(project);
             }
-            if (project.slug === 'exp-grafica') {
-                titleWrapClasses.push('title-wrapper--fit');
-            }
-            if (project.slug === 'touchdesigner') {
-                titleWrapClasses.push('title-wrapper--touchdesigner');
-            }
-            const titleWrapClass = titleWrapClasses.join(' ');
-            // Inyecta Título en el Hero
-            dynamicHeader.innerHTML = `
-                <div class="${titleWrapClass}">
-                    <h1 class="title-giant">${projectHeroTitleHtml(project)}</h1>
-                </div>
-            `;
-
-            // Título/descripción de la pestaña y meta description: genéricos por
-            // defecto (plantilla estática), se ajustan al proyecto ya cargado.
-            document.title = `${project.title} | Máximo Mazzuchin | Visual Designer`;
-            const metaDescription = document.querySelector('meta[name="description"]');
-            if (metaDescription) metaDescription.setAttribute('content', project.description);
 
             // Llena la sección de información del proyecto (descripción, tipo)
             const projectInfo = document.getElementById('project-info');

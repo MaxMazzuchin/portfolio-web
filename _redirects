@@ -1,0 +1,2 @@
+# Links viejos a proyectos (project.html?slug=x) -> página estática del proyecto
+/project.html  slug=:slug  /proyectos/:slug.html  301!

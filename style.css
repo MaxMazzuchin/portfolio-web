@@ -53,15 +53,11 @@ body::before {
     z-index: -1;
 }
 
+/* Solo opacidad: un transform en <body> convierte a los position:fixed
+   (navbar, intro) en relativos al documento durante la animación. */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 a {
@@ -108,6 +104,20 @@ a:focus-visible {
     .intro-video {
         width: 85%;
         height: 85%;
+    }
+}
+
+/* Celular vertical: el logo ocupa del 12% al 88% del ancho del video; se
+   recortan los márgenes negros laterales para verlo ~22% más grande.
+   ponytail: si se exporta un intro vertical, reemplazar esto por un <source media>. */
+@media (max-width: 768px) and (orientation: portrait) {
+    .intro-overlay {
+        overflow: hidden;
+    }
+
+    .intro-video {
+        width: 122vw;
+        flex-shrink: 0;
     }
 }
 
@@ -265,6 +275,36 @@ a:focus-visible {
     pointer-events: none;
 }
 
+/* Llamado a contacto (todas las páginas) */
+.footer-cta {
+    display: block;
+    max-width: 18ch;
+    margin-bottom: var(--spacing-xl);
+    font-size: clamp(2rem, 5.5vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    position: relative;
+    z-index: 1;
+}
+
+.footer-cta span {
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.footer-cta:hover {
+    opacity: 1;
+}
+
+@media (hover: hover) {
+    .footer-cta:hover span {
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 0.15em;
+    }
+}
+
 .footer-top {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -338,6 +378,11 @@ a:focus-visible {
 @media (min-width: 1200px) {
     .projects-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Home: 4 destacados en 2x2, sin huérfano en la tercera columna */
+    .projects-grid--featured {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -462,8 +507,48 @@ a:focus-visible {
 }
 
 .see-more-btn:hover {
-    color: var(--bg-color);
     transform: translateY(-3px);
+}
+
+/* =========================================
+   HOME: ADELANTO DEL RESTO (fundido a negro)
+   ========================================= */
+.projects-peek {
+    position: relative;
+    max-height: clamp(10rem, 22vw, 20rem);
+    overflow: hidden;
+    margin-top: var(--spacing-sm);
+}
+
+/* Negro abajo -> transparente arriba; no bloquea los clics */
+.projects-peek::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top,
+        var(--bg-color) 0%,
+        var(--bg-color) 22%,
+        rgba(0, 0, 0, 0.6) 60%,
+        rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+}
+
+/* "VER MÁS" sube y se apoya sobre el fundido */
+.projects-peek + .see-more-container {
+    position: relative;
+    margin-top: calc(-1 * var(--spacing-xl));
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .projects-peek {
+        margin-top: var(--spacing-md);
+    }
+
+    /* Una columna en móvil: con una tarjeta alcanza */
+    .projects-peek .project-card:nth-child(n + 2) {
+        display: none;
+    }
 }
 
 /* =========================================
@@ -1153,9 +1238,15 @@ a:focus-visible {
    RESPONSIVE (Mobile)
    ========================================= */
 @media (max-width: 768px) {
+    /* Mismo alto visual, pero el área táctil de cada link llena el navbar (~44px) */
     .navbar {
-        padding: var(--spacing-sm);
+        padding: 0 var(--spacing-sm);
         font-size: 0.75rem;
+    }
+
+    .nav-item a {
+        display: inline-block;
+        padding: 1rem 0;
     }
 
     .hero {

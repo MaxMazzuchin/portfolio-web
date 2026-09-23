@@ -22,3 +22,6 @@
 
 /
   Cache-Control: public, max-age=0, must-revalidate
+
+/proyectos/*
+  Cache-Control: public, max-age=0, must-revalidate

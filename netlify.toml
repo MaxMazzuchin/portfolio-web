@@ -1,0 +1,5 @@
+# En cada deploy genera proyectos/*.html y sitemap.xml a partir de script.js
+# (ver build-projects.js). Si falla, Netlify mantiene la versión anterior online.
+[build]
+  command = "node build-projects.js"
+  publish = "."

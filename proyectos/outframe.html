@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Plantilla: build-projects.js genera proyectos/<slug>.html reemplazando
-         este bloque (título, descripción, preview para redes) en cada proyecto. -->
-    <!-- meta:start -->
-    <title>Proyecto | Máximo Mazzuchin, diseñador gráfico</title>
-    <meta name="robots" content="noindex">
-    <meta name="description" content="Proyecto de Máximo Mazzuchin, diseñador gráfico en Córdoba, Argentina. Identidad visual, dirección de arte y sistemas gráficos.">
-    <!-- meta:end -->
+    <base href="/">
+    <title>OUTFRAME — Diseño editorial | Máximo Mazzuchin</title>
+    <meta name="description" content="Proyecto editorial sobre el fotógrafo Chema Madoz, realizado para una estudiante universitaria en España. Desarrollé la identidad visual completa: tipografías, paleta, maquetación y estructura editorial. El resultado fue una publicación con jerarquías claras y nivel estético profesional.">
+    <link rel="canonical" href="https://maximomazzuchin.com/proyectos/outframe.html">
+    <meta property="og:title" content="OUTFRAME — Diseño editorial | Máximo Mazzuchin">
+    <meta property="og:description" content="Proyecto editorial sobre el fotógrafo Chema Madoz, realizado para una estudiante universitaria en España. Desarrollé la identidad visual completa: tipografías, paleta, maquetación y estructura editorial. El resultado fue una publicación con jerarquías claras y nivel estético profesional.">
+    <meta property="og:image" content="https://maximomazzuchin.com/images/projects/outframe/cover.webp">
+    <meta property="og:url" content="https://maximomazzuchin.com/proyectos/outframe.html">
+    <meta name="twitter:title" content="OUTFRAME — Diseño editorial | Máximo Mazzuchin">
+    <meta name="twitter:description" content="Proyecto editorial sobre el fotógrafo Chema Madoz, realizado para una estudiante universitaria en España. Desarrollé la identidad visual completa: tipografías, paleta, maquetación y estructura editorial. El resultado fue una publicación con jerarquías claras y nivel estético profesional.">
+    <meta name="twitter:image" content="https://maximomazzuchin.com/images/projects/outframe/cover.webp">
     <meta name="theme-color" content="#000000">
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -22,7 +26,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=6">
 </head>
-<body>
+<body data-slug="outframe">
     <nav class="navbar">
         <div class="nav-item"><a href="/">Máximo M.</a></div>
         <div class="nav-item text-center"><a href="work.html">Work</a></div>
@@ -31,6 +35,7 @@
 
     <!-- Full-width Title Header -->
     <section class="project-title-header" id="dynamic-header">
+        <div class="title-wrapper"><h1 class="title-giant">(OUTFRAME)</h1></div>
     </section>
 
     <!-- Content Grid with Sticky Sidebar -->
@@ -40,12 +45,12 @@
             <section class="project-info-section" id="project-info">
                 <div class="project-overview">
                     <h2 class="project-subtitle">Project Overview</h2>
-                    <p class="project-description" id="project-description"></p>
+                    <p class="project-description" id="project-description">Proyecto editorial sobre el fotógrafo Chema Madoz, realizado para una estudiante universitaria en España. Desarrollé la identidad visual completa: tipografías, paleta, maquetación y estructura editorial. El resultado fue una publicación con jerarquías claras y nivel estético profesional.</p>
                 </div>
 
                 <div class="project-type-section">
                     <h2 class="project-subtitle">Project Type</h2>
-                    <p class="project-type-text" id="project-type"></p>
+                    <p class="project-type-text" id="project-type">Diseño editorial</p>
                 </div>
             </section>
         </aside>
