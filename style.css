@@ -487,6 +487,10 @@ a:focus-visible {
    SEE MORE BUTTON
    ========================================= */
 .see-more-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 var(--spacing-md);
     padding: var(--spacing-md) var(--spacing-md) 0;
     text-align: center;
     margin-bottom: var(--spacing-md);

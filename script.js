@@ -672,6 +672,14 @@ document.addEventListener('DOMContentLoaded', () => {
         kickTitleReveal(dynamicHeader);
     }
 
+    // E. 404: 3 trabajos al azar para que la visita no termine en un callejón.
+    const notFoundGrid = document.getElementById('not-found-grid');
+    if (notFoundGrid) {
+        shuffleArray(projectsData).slice(0, 3).forEach(p => {
+            notFoundGrid.appendChild(createOtherProjectCard(p));
+        });
+    }
+
     // D. Renderizado para la página Sobre Mi (sobre-mi.html)
     const aboutImageColumn = document.querySelector('.about-image-column');
     if (aboutImageColumn) {

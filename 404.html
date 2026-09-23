@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Página no encontrada | Máximo Mazzuchin | Visual Designer</title>
+    <!-- Netlify sirve esta página en cualquier URL inexistente (ej. /proyectos/x/y):
+         base="/" hace que las rutas relativas sigan resolviendo desde la raíz. -->
+    <base href="/">
+    <title>Página no encontrada | Máximo Mazzuchin</title>
     <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#000000">
     <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
     <nav class="navbar">
@@ -20,12 +27,19 @@
         <div class="title-wrapper title-wrapper--single-line">
             <h1 class="title-giant">(404)</h1>
         </div>
-        <p class="hero-desc">Esta página no existe o se movió. Volvé al inicio o mirá los trabajos.</p>
+        <p class="hero-desc">Esta página no existe o se movió. Pero el trabajo sigue acá.</p>
     </section>
 
     <div class="see-more-container">
-        <a href="/" class="see-more-btn">VOLVER AL INICIO</a>
+        <a href="/" class="see-more-btn">Volver al inicio</a>
+        <a href="work.html" class="see-more-btn">Ver todos los trabajos</a>
     </div>
+
+    <section class="other-projects">
+        <h2>Quizás buscabas esto</h2>
+        <div class="other-projects-grid" id="not-found-grid">
+        </div>
+    </section>
 
     <footer class="footer">
         <a href="mailto:mazzuchinmaximo@gmail.com?subject=Consulta%20desde%20el%20portfolio" class="footer-cta">¿Tenés un proyecto en mente? <span>Escribime →</span></a>
@@ -53,6 +67,6 @@
         </div>
     </footer>
 
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=7"></script>
 </body>
 </html>
