@@ -24,7 +24,7 @@ export const cases = {
         result: 'Estampas de estética streetwear para acercar la marca a un público más joven.',
     },
     outframe: {
-        context: 'Publicación sobre el fotógrafo Chema Madoz, hecha para una estudiante universitaria de España. Elegí tipografías y paleta, y armé la maquetación. En esta página la maquetación está rearmada en código y la portada anima el título con las fotos adentro de las letras.',
+        context: 'Publicación sobre el fotógrafo Chema Madoz, hecha para una estudiante universitaria de España. Elegí tipografías y paleta, y armé la maquetación.',
         result: 'Una publicación con jerarquías claras y las fotos al frente.',
     },
     'exp-grafica': {
@@ -44,19 +44,19 @@ export const cases = {
     },
     nyro: {
         client: 'Nyro',
-        context: 'Identidad de marca para Nyro, empresa de analytics orientada a decisiones basadas en datos. El isotipo es una n armada con un cuadrado, un semicírculo y dos cuartos de círculo sobre una grilla de 3 × 3. En esta página el manual está hecho en código y el isotipo se construye animado.',
+        context: 'Identidad de marca para Nyro, empresa de analytics orientada a decisiones basadas en datos. El isotipo es una n armada con un cuadrado, un semicírculo y dos cuartos de círculo sobre una grilla de 3 × 3.',
         result: 'Una marca que se aleja de los recursos gastados del rubro.',
     },
     'contigiani-brinon': {
         client: 'Contigiani Briñón',
-        context: 'Identidad completa para Contigiani Briñón, una inmobiliaria de Córdoba. El logo junta un edificio de líneas quebradas con el monograma CB, y abajo va el rubro: Bienes Raíces. Armé el manual con la anatomía del logo, la paleta (azul, rojo, negro y blanco), Montserrat como tipografía, las variaciones de color y las aplicaciones. En esta página el manual está hecho en código y el logo se construye animado.',
+        context: 'Identidad completa para Contigiani Briñón, una inmobiliaria de Córdoba. El logo junta un edificio de líneas quebradas con el monograma CB, y abajo va el rubro: Bienes Raíces. Armé el manual con la anatomía del logo, la paleta (azul, rojo, negro y blanco), Montserrat como tipografía, las variaciones de color y las aplicaciones.',
         result: 'Una marca sobria que se reconoce rápido, con el rojo reservado para el dato que importa. Se aplicó en tarjetas, papelería, redes, cartel de venta y los posts de cada propiedad.',
     },
     'blue-marketing': {
         client: 'Blue Marketing',
         year: '2026',
         role: 'Identidad, stickers y posts',
-        context: 'Identidad de marca para Blue Marketing, agencia de marketing digital. Armé el logo, la paleta, el manual, 15 stickers y los posts de resultados. El mar y los tiburones son el hilo de todo el sistema. En esta página el manual está hecho en código y el logo se construye animado.',
+        context: 'Identidad de marca para Blue Marketing, agencia de marketing digital. Armé el logo, la paleta, el manual, 15 stickers y los posts de resultados. El mar y los tiburones son el hilo de todo el sistema.',
         result: 'Una marca de tres colores y una sola tipografía, con stickers que le dan personalidad en las redes.',
     },
     curu: {
