@@ -104,6 +104,8 @@ function hoof(t, strong, gain) {
     noise(t, 0.03, { buf: crushed, f: strong ? 900 : 1300, q: 1.1, peak: (strong ? 0.5 : 0.34) * gain });
 }
 
+const stride = (t, gain) => [0, 0.09, 0.18].forEach((b, i) => hoof(t + b, i === 2, gain)); // tres cascos ("ta-ga-DUM")
+
 const SOUNDS = {
     tick: (t, p) => {
         tone(t, 1900 * p, 0.012, { type: 'square', peak: 0.35 });
@@ -118,7 +120,12 @@ const SOUNDS = {
     lbOpen: (t, p) => [620, 930].forEach((f, i) => tone(t + i * 0.028, f * p, 0.022, { type: 'square', peak: 0.24 })),
     open: (t, p) => [440, 660, 880, 1320].forEach((f, i) => tone(t + i * 0.034, f * p, 0.03, { type: 'square', peak: 0.3 })),
     // Galope: tres cascos y una pausa ("ta-ga-DUM"), el ciclo del caballo dura 10/16 s; la segunda zancada ya se va apagando.
-    gallop: (t) => [0, 0.625].forEach((d, s) => [0, 0.09, 0.18].forEach((b, i) => hoof(t + d + b, i === 2, s ? 0.55 : 1))),
+    gallop: (t) => [0, 0.625].forEach((d, s) => stride(t + d, s ? 0.55 : 1)),
+    // Huevo de pascua: el caballo cruza la pantalla; `secs` es lo que dura el cruce (una zancada cada 0,625 s).
+    gallopRun: (t, p, secs = 3) => { for (let k = 0; k * 0.625 < secs; k++) stride(t + k * 0.625, 0.8); },
+    // Minijuego del 404.
+    jump: (t, p) => tone(t, 480 * p, 0.06, { type: 'square', peak: 0.28, fEnd: 900 * p }),
+    crash: (t) => { noise(t, 0.2, { buf: crushed, f: 320, q: 0.8, peak: 0.6 }); tone(t, 200, 0.22, { type: 'square', peak: 0.4, fEnd: 50 }); },
     wipeIn: (t) => gated(t, 0.55, Array.from({ length: 22 }, (_, i) => (Math.random() < 0.25 + 0.7 * (i / 22) ? rnd(0.4, 1) : 0)), { f: 900, fEnd: 6000, peak: 0.55 }),
     wipeOut: (t) => gated(t, 0.7, Array.from({ length: 26 }, (_, i) => (Math.random() < 0.95 - 0.9 * (i / 26) ? rnd(0.3, 1) : 0)), { f: 6000, fEnd: 900, peak: 0.5 }),
 };
@@ -130,13 +137,13 @@ export const sound = {
     get enabled() { return on; },
 
     /** p = variación de tono (1 = sin cambio). */
-    play(name, p = 1) {
+    play(name, p = 1, arg) {
         if (!on || !boot()) return;
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         const now = ctx.currentTime;
         if (MIN_GAP[name] && last[name] && now - last[name] < MIN_GAP[name]) return;
         last[name] = now;
-        SOUNDS[name](now + 0.005, p);
+        SOUNDS[name](now + 0.005, p, arg);
     },
 
     set(v) {

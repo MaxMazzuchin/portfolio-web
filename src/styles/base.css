@@ -224,6 +224,7 @@ main, .footer { position: relative; z-index: 1; }
 .nf > *:not(.ghost) { position: relative; z-index: 1; }
 .nf-meta { color: var(--accent-ink); }
 .nf-title { font-size: clamp(40px, 7vw, 120px); font-weight: 800; line-height: 0.92; letter-spacing: -0.05em; text-transform: uppercase; max-width: 12em; }
+.nf-game { display: block; width: min(100%, 820px); height: clamp(170px, 26vh, 230px); margin-top: 6px; border-bottom: 1px solid var(--line); touch-action: manipulation; cursor: pointer; }
 .nf-text { font-family: var(--font-text); font-weight: 300; font-size: clamp(16px, 1.3vw, 20px); line-height: 1.4; max-width: 34em; color: var(--muted); }
 
 /* ---------------- Proyecto ---------------- */

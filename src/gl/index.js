@@ -218,10 +218,35 @@ export const gl = {
     /** Cover the screen. Color = fondo del tema actual (negro en oscuro, claro en claro), congelado al empezar so a theme flip underneath is invisible. */
     cover(colorVar = '--bg') {
         if (!this.ok || reduced) return Promise.resolve();
+        if (this._runTween) this._stopHorseRun(); // si el caballo del huevo de pascua está cruzando, la transición manda
         sound.play('wipeIn');
         this.tMat.uniforms.uColor.value.set(...cssColor(colorVar));
         this.hMat.uniforms.uColor.value.set(...cssColor(colorVar === '--bg' ? '--fg' : '--bg'));
         return this._sweep(0, 1, 0, 0.55).then(() => this._horseIn());
+    },
+
+    /** Huevo de pascua (5 clicks en el logo): el caballo cruza la pantalla galopando, en dither y en el color del texto. */
+    horseRun() {
+        if (!this.ok || reduced || this._runTween || this.curtain.visible || !this.horseReady) return;
+        const { vw, vh } = this.frame;
+        const hw = this.horse.scale.x * 1.3;
+        this.hMat.uniforms.uColor.value.set(...cssColor('--fg'));
+        this.hMat.uniforms.uReveal.value = 1;
+        this._horseT0 = gsap.ticker.time;
+        this.horse.scale.set(hw, (hw * 450) / 640, 1);
+        this.horse.position.set(-hw / 2, vh * 0.55, 2);
+        this.horse.visible = true;
+        document.documentElement.classList.add('gl-top'); // por encima de la navbar, como la cortina
+        const dur = (vw + hw) / Math.max(420, vw * 0.45);
+        sound.play('gallopRun', 1, dur);
+        this._runTween = gsap.to(this.horse.position, { x: vw + hw / 2, duration: dur, ease: 'none', onComplete: () => this._stopHorseRun() });
+    },
+
+    _stopHorseRun() {
+        this._runTween?.kill();
+        this._runTween = null;
+        if (!this.curtain.visible) { this.horse.visible = false; document.documentElement.classList.remove('gl-top'); }
+        this.resize(); // devuelve el caballo de la cortina a su tamaño y lugar (centrado)
     },
 
     /** El caballo aparece con dither sobre la cortina cerrada y galopa (en el sonido también). */

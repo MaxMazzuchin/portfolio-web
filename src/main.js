@@ -8,6 +8,7 @@ import { gl } from './gl/index.js';
 import { initTheme } from './core/theme.js';
 import { initCursor } from './core/cursor.js';
 import { initSound } from './core/sound.js';
+import { initEasterEggs } from './core/easter.js';
 import { initRouter } from './core/router.js';
 import { mountDbars } from './core/dbar.js';
 import { projects } from './data/work.js';
@@ -106,6 +107,7 @@ async function boot() {
     initTheme();
     initCursor();
     initSound();
+    initEasterEggs();
     initMenu();
     startClock();
 
