@@ -299,9 +299,15 @@ main, .footer { position: relative; z-index: 1; }
 .lb.is-zoomed .lb-nav, .lb.is-zoomed .lb-hint { opacity: 0; pointer-events: none; }
 .lb-hint { position: absolute; left: 0; right: 0; bottom: 16px; text-align: center; color: var(--muted); font-size: 20px; }
 
-.lb--list .lb-scroll { position: absolute; inset: 0; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.lb--list .lb-slide { height: 100dvh; scroll-snap-align: center; scroll-snap-stop: always; display: grid; place-items: center; padding: 72px 12px 24px; }
-.lb--list .lb-slide img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lb--single .lb-stage { touch-action: none; } /* sin esto el navegador se queda con el gesto de arrastre y el swipe no llega */
+
+/* Celular / táctil: flechas abajo de la imagen, sin zoom ni texto de ayuda. */
+.lb--touch .lb-stage { bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+.lb--touch .lb-img { max-width: calc(100vw - 2 * var(--gutter)); max-height: calc(100svh - 64px - 88px - env(safe-area-inset-bottom, 0px)); cursor: default; }
+.lb--touch .lb-nav { top: auto; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); margin-top: 0; width: 60px; height: 60px; border: 1px solid var(--line); color: var(--fg); font-size: 26px; }
+.lb--touch .lb-prev { left: calc(50% - 68px); }
+.lb--touch .lb-next { right: auto; left: calc(50% + 8px); }
+.lb--touch .lb-hint { display: none; }
 
 /* ---------------- Responsive ---------------- */
 @media (max-width: 800px) {
