@@ -33,7 +33,6 @@ export function openLightbox({ images, index = 0, title = '' }) {
         <div class="lb-stage"><img class="lb-img" alt=""></div>
         <button class="lb-nav lb-prev mono" type="button" aria-label="Anterior">←</button>
         <button class="lb-nav lb-next mono" type="button" aria-label="Siguiente">→</button>
-        <p class="lb-hint mono">← → navegar · click para zoom · esc cerrar</p>
     `;
     document.body.appendChild(root);
 
