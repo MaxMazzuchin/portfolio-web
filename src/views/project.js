@@ -64,13 +64,13 @@ export function mountProject(view) {
     };
 
     // A video is a path (V2) or { src, w, h }: with w/h the box keeps the real proportion (vertical or wide).
-    // A section with loop: true plays as a silent loop with no controls (short edits, animations).
+    // Todos los videos van como loop mudo y sin controles (pedido del usuario); `loop: true` en los datos ya no cambia nada.
     const videos = (sec) => `<div class="g-videos">${sec.videos.map((v, i) => {
         const src = typeof v === 'string' ? v : v.src;
         const ar = typeof v === 'string' ? '' : ` style="--ar:${v.w}/${v.h};--r:${(v.w / v.h).toFixed(4)}"`;
         // video-N.mp4 tiene su fotograma de portada al lado (video-N-poster.webp, ver scripts/shrink-videos.mjs): la caja no queda negra mientras baja.
         const poster = src.replace(/\.mp4$/, '-poster.webp');
-        return `<video class="g-video"${ar} data-src="${src}" poster="${poster}" ${sec.loop ? '' : 'controls '}playsinline loop muted preload="none" aria-label="${esc(p.title)} — video ${i + 1}"></video>`;
+        return `<video class="g-video"${ar} data-src="${src}" poster="${poster}" playsinline loop muted preload="none" aria-label="${esc(p.title)} — video ${i + 1}"></video>`;
     }).join('')}</div>`;
 
     const manual = manuals[p.slug];
