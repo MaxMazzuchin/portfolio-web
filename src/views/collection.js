@@ -270,7 +270,8 @@ function collection(kind, view) {
         const row = e.target.closest('.ci-row');
         if (row) {
             const i = Number(row.dataset.i);
-            if (i === wheel.active) activate(i); else wheel.goTo(i);
+            // En el celular un toque abre la entrada (seleccionar primero y abrir con otro toque es confuso); en escritorio, el primero selecciona.
+            if (i === wheel.active || narrow.matches) activate(i); else wheel.goTo(i);
         }
     };
     const onOver = (e) => {

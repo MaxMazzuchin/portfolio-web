@@ -345,10 +345,12 @@ main, .footer { position: relative; z-index: 1; }
     .c-meta { display: none; }
     .c-item { grid-template-columns: 44px 1fr; }
     .c-hint { display: none; }
-    .c-index { right: var(--gutter); bottom: calc(150px + 110px); font-size: 20px; }
-    .ci-row { grid-template-columns: 36px 1fr; }
-    .ci-row > :nth-child(3) { display: none; }
-    .c-preview { width: 110px; bottom: 116px; }
+    /* Lista (respaldo sin WebGL): un índice que se desliza, dos líneas por entrada (nombre y subtítulo), sin título grande duplicado ni imagen encima. */
+    .is-list .c-list, .is-list .c-preview { display: none; }
+    .c-index { top: calc(var(--nav-h) + 84px); bottom: 100px; right: var(--gutter); overflow-y: auto; overscroll-behavior: contain; font-size: 18px; line-height: 1.15; }
+    .ci-row { grid-template-columns: 36px 1fr; row-gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .ci-row .num { grid-row: 1 / span 2; padding-top: 3px; }
+    .ci-row > :nth-child(3) { grid-column: 2; font-size: 13px; font-style: italic; opacity: 0.75; }
     .c-win-main { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
     .c-win-author { font-size: 9vw; }
 
