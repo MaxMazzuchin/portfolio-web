@@ -62,7 +62,8 @@ export function createWheel(G, { projects, hit, onFrame, onActive, onOpen }) {
 
     function update() {
         layout();
-        pos += (target - pos) * (reduced ? 1 : 0.085);
+        // Con el dedo abajo la rueda lo sigue casi pegada; suelta, en el celular frena un poco más rápido que en escritorio.
+        pos += (target - pos) * (reduced ? 1 : drag ? 0.34 : G.frame.vw < 800 ? 0.12 : 0.085);
         const { vw } = G.frame;
 
         for (const c of cards) {
@@ -123,16 +124,22 @@ export function createWheel(G, { projects, hit, onFrame, onActive, onOpen }) {
     };
 
     let drag = null;
+    // En el celular el dedo recorre poco: con la distancia de escritorio (≈170 px por carta) la rueda se sentía pesada.
+    const gain = () => (G.frame.vw < 800 ? 1.9 : 1);
     const onDown = (e) => {
         try { hit.setPointerCapture(e.pointerId); } catch { /* synthetic / already-released pointer */ }
-        drag = { x: e.clientX, y: e.clientY, t: target, moved: 0 };
+        drag = { x: e.clientX, y: e.clientY, t: target, moved: 0, lx: e.clientX, ly: e.clientY, lt: performance.now(), v: 0 };
     };
     const onMove = (e) => {
         if (drag) {
             const dx = e.clientX - drag.x;
             const dy = e.clientY - drag.y;
             drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
-            target = drag.t + (-dx - dy) / geo.spacing;
+            // Velocidad del dedo (px/ms, suavizada) para el empujón al soltar.
+            const now = performance.now();
+            drag.v = drag.v * 0.7 + (((e.clientX - drag.lx) + (e.clientY - drag.ly)) / Math.max(1, now - drag.lt)) * 0.3;
+            drag.lx = e.clientX; drag.ly = e.clientY; drag.lt = now;
+            target = drag.t + ((-dx - dy) * gain()) / geo.spacing;
             return;
         }
         const c = cardAt(e.clientX, e.clientY);
@@ -141,6 +148,9 @@ export function createWheel(G, { projects, hit, onFrame, onActive, onOpen }) {
     const onUp = (e) => {
         if (!drag) return;
         const wasClick = drag.moved < 6;
+        // Un flick rápido sigue de largo (hasta 2,5 cartas); si el dedo se quedó quieto antes de soltar, no hay empujón.
+        const v = performance.now() - drag.lt > 90 ? 0 : drag.v;
+        const flick = Math.max(-2.5, Math.min(2.5, (-v * 220 * gain()) / geo.spacing));
         drag = null;
         if (wasClick) {
             const c = cardAt(e.clientX, e.clientY);
@@ -150,7 +160,7 @@ export function createWheel(G, { projects, hit, onFrame, onActive, onOpen }) {
                 return;
             }
         }
-        target = Math.round(target);
+        target = Math.round(target + flick);
     };
     const onLeave = () => cursor.hint(null);
     const onKey = (e) => {
