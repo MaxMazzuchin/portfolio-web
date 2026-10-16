@@ -261,6 +261,7 @@ main, .footer { position: relative; z-index: 1; }
 .g-videos { display: flex; flex-direction: column; gap: 24px; }
 /* Each video fits fully on screen (no scrolling to see the rest): width follows the height that is left under the nav. */
 .g-videos video { width: min(100%, calc((100svh - var(--nav-h) - 48px) * var(--r, 1.7778))); aspect-ratio: var(--ar, 16 / 9); align-self: center; background: var(--line); object-fit: contain; }
+.g-videos--fill video { width: 100%; } /* Curu: al ancho de la columna, como las imágenes (los verticales quedan más altos que la pantalla) */
 
 /* Result text right after the cover. */
 .p-chapter { display: grid; gap: 12px; max-width: 60ch; padding: clamp(20px, 4vw, 56px) 0; scroll-margin-top: calc(var(--nav-h) + 8px); }

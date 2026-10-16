@@ -14,6 +14,8 @@ const SIZES_GRID_2 = '(max-width: 800px) calc(50vw - 21px), calc(35vw - 40px)';
 
 // Series largas: en mobile la grilla sigue en dos columnas (en los demás proyectos pasa a una).
 const TWO_COLS_MOBILE = new Set(['exp-grafica', '100-posters']);
+// Proyectos cuyos videos ocupan todo el ancho de la columna, como las imágenes (el resto se achica para entrar enteros en la altura de la pantalla).
+const FULL_WIDTH_VIDEOS = new Set(['curu']);
 
 // Proyectos cuya galería es un manual armado en código (HTML/SVG animado) en lugar de imágenes. Se cargan bajo demanda.
 // Los slugs también están en MANUALS (data/work.js): ahí se marca `manual` para que scripts/variants.mjs no genere variantes de imágenes que no se muestran.
@@ -65,7 +67,7 @@ export function mountProject(view) {
 
     // A video is a path (V2) or { src, w, h }: with w/h the box keeps the real proportion (vertical or wide).
     // Todos los videos van como loop mudo y sin controles (pedido del usuario); `loop: true` en los datos ya no cambia nada.
-    const videos = (sec) => `<div class="g-videos">${sec.videos.map((v, i) => {
+    const videos = (sec) => `<div class="g-videos${FULL_WIDTH_VIDEOS.has(p.slug) ? ' g-videos--fill' : ''}">${sec.videos.map((v, i) => {
         const src = typeof v === 'string' ? v : v.src;
         const ar = typeof v === 'string' ? '' : ` style="--ar:${v.w}/${v.h};--r:${(v.w / v.h).toFixed(4)}"`;
         // video-N.mp4 tiene su fotograma de portada al lado (video-N-poster.webp, ver scripts/shrink-videos.mjs): la caja no queda negra mientras baja.
