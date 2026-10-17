@@ -1,13 +1,12 @@
 /**
- * Promo del estreno: un recorrido calmo por las piezas del portfolio (nav, rueda, página de proyecto, visor, biblioteca),
- * armadas en DOM + canvas con la tipografía, el dither y los datos reales del sitio. Todo es función del tiempo:
- * `render(t)` deja el escenario en el segundo t (una llamada por cuadro). `AUDIO` es la lista de sonidos con su tiempo.
- *   ?f=v (1080×1920, default) | ?f=h (1920×1080) · ?render para grabar (sin interfaz).
+ * Promo del estreno, "del ruido a la imagen": el portfolio es dither (1 bit) y todo nace del grano.
+ * Un caballo se ordena a partir del ruido, cruza tres veces dejando portadas, las cartas se juntan en la rueda,
+ * la rueda se deshace en ruido y del ruido sale (MZZ.DSG). Sin UI del sitio, sin destellos.
+ * Todo es función del tiempo: `render(t)` deja el escenario en el segundo t (una llamada por cuadro).
+ * `AUDIO` es la lista de sonidos con su tiempo. ?f=v (1080×1920, default) | ?f=h (1920×1080) · ?render para grabar.
  */
-import { BAYER8, ditherField, ditherBar } from '/src/core/dither.js';
+import { BAYER8, ditherField } from '/src/core/dither.js';
 import { projects } from '/src/data/work.js';
-import { library, kinds } from '/src/data/library.js';
-import { accentOf } from '/src/data/accents.js';
 
 const Q = new URLSearchParams(location.search);
 const HZ = Q.get('f') === 'h';
@@ -15,7 +14,6 @@ const RENDER = Q.has('render');
 const W = HZ ? 1920 : 1080;
 const H = HZ ? 1080 : 1920;
 export const DURATION = 20;
-const FPS = 30;
 
 document.documentElement.classList.toggle('h', HZ);
 document.documentElement.classList.toggle('render', RENDER);
@@ -25,369 +23,261 @@ document.documentElement.style.setProperty('--H', `${H}px`);
 const lerp = (a, b, k) => a + (b - a) * k;
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const ease = (k) => k * k * (3 - 2 * k);
-const easeOut = (k) => 1 - (1 - k) ** 3;
 const bayer = (x, y) => BAYER8[y & 7][x & 7];
-const pad = (n) => String(n).padStart(2, '0');
-const frac = (v) => v - Math.floor(v);
+const hash = (a, b = 0, c = 0) => { const s = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return s - Math.floor(s); };
+const INK = [244, 244, 239];
 
 /* ───────────────────────── línea de tiempo ───────────────────────── */
-const SCN = { idx: [0.7, 5.4], wheel: [6.45, 11.75], proj: [11.25, 15.8], lib: [15.35, 17.8], end: [17.45, 20] };
-const op = (t, [a, b], fi = 0.45, fo = 0.45) => clamp((t - a) / fi) * clamp((b - t) / fo);
-const CORT = { cover: [5.1, 5.55], hold: [5.55, 6.45], open: [6.45, 6.9] }; // cortina del sitio, con el caballo en el medio
-const WHEEL = { t0: 7.1, dur: 0.95, steps: 5 };
-const LIBW = { t0: 15.85, dur: 0.75, steps: 2 };
-const SCROLL = [11.55, 14.7];
-const T_CLICK = { cta: 5.0, ver: 11.2, img: 14.4 };
-const T_LB = [14.5, 15.8];
+const EM = [2.6, 3.6]; // el caballo se ordena a partir del grano
+const CROSS = [[3.6, 5.6, 1], [6.0, 8.0, -1], [8.4, 10.4, 1]]; // [desde, hasta, dirección]
+const HERO = [10.4, 11.4]; // la última portada se achica hasta ser una carta
+const ARRIVE = 11.0; // las demás cartas llegan por el arco
+const ROT = [12.2, 15.0]; // la rueda gira sola
+const DISS = [15.0, 16.8]; // la rueda se deshace en ruido
+const TITLE = [16.7, 18.0]; // (MZZ.DSG) se ordena a partir del grano
+const CRISP = 18.2;
 
 /* ───────────────────────── datos ───────────────────────── */
 const PW = projects.slice(0, 10);
-const PROJ = projects.find((p) => p.slug === 'sin-datos');
-const LIB = library.filter((e) => e.cover).slice(0, 8);
-const TOTAL = projects.length;
-
+const SLUGS = ['album-artwork', 'sin-datos', 'i-life']; // las tres portadas que deja el caballo
+const COV = SLUGS.map((s) => PW.findIndex((p) => p.slug === s));
+const P0 = COV[2]; // la carta que queda en el centro de la rueda
 const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(i); i.src = src; });
-
-const gallery = (() => {
-    const imgs = [PROJ.cover];
-    for (const s of PROJ.sections) for (const im of s.images || []) if (im.h > im.w) imgs.push(im);
-    return imgs.slice(0, 11);
-})();
-const allPieces = PROJ.sections.reduce((n, s) => n + (s.images?.length || 0), 0) + 1;
 
 /* ───────────────────────── DOM ───────────────────────── */
 const stage = document.getElementById('stage');
-const wheelHTML = (cls, extra = '') => `
-<section class="sc ${cls}">${extra}<div class="cards"></div>
-    <div class="wt"><canvas></canvas><div class="no"></div><div class="nm"></div><div class="sb"></div></div>
-    <div class="wn"></div><div class="wf"></div><div class="wf2"></div></section>`;
-
 stage.innerHTML = `
 <canvas class="field"></canvas>
-<section class="sc a">
-    <div class="ghost">MZ</div>
-    <p class="p1">Soy Máximo, diseñador gráfico independiente de Argentina. Trabajo en identidad visual, dirección de arte y sistemas gráficos para marcas que tienen algo para decir y necesitan mostrarlo.</p>
-    <canvas class="hero"></canvas>
-    <div class="ht ht1">(MZZ.DSG)</div><div class="ht ht2">(2026)</div>
-    <p class="p2">Acá están mis trabajos y, aparte, una biblioteca de lo que leo, escucho y miro: las referencias que me acompañan cuando diseño.</p>
-    <ul class="menu"><li><sup>(15)</sup>Trabajos</li><li><sup>(18)</sup>Biblioteca</li><li><sup>(+)</sup>Sobre mí</li></ul>
-    <div class="cta">Entrar a Trabajos ↗<i></i></div>
-</section>
-${wheelHTML('w')}
-<section class="sc p"><div class="pi"><div class="no"></div><div class="nm"></div><p class="ds"></p><div class="rows"></div></div><div class="pg"></div></section>
-${wheelHTML('l', '<div class="filters"><b>Todos<sup>18</sup></b><span>Libros</span><span>Álbumes</span><span>Videos</span><span>Galerías</span></div>')}
-<section class="sc e"><canvas class="dt"></canvas><div class="title">(MZZ.DSG)</div><div class="online"><span></span><i></i></div></section>
-<div class="lbx"><div class="im"></div><div class="im"></div><div class="ct"></div><div class="cl">Cerrar ✕</div></div>
-<canvas class="wipe"></canvas>
+<canvas class="base"></canvas>
+<canvas class="top"></canvas>
+<div class="wheel">${PW.map(() => '<div class="wc"></div>').join('')}</div>
+<canvas class="dissolve"></canvas>
 <canvas class="horse" width="640" height="450"></canvas>
-<header class="nav">
-    <a class="logo">Máximo<br>Mazzuchin<sup>®</sup></a>
-    <nav class="links"><a>Index</a><a>Trabajos<sup>15</sup></a><a>Biblioteca<sup>18</sup></a><a>Sobre mí</a></nav>
-    <div class="tools"><span class="menu">Menú</span><svg class="spk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span>Oscuro</span></div>
-</header>
-<div class="cur"><canvas width="26" height="26"></canvas><span></span></div>`;
+<canvas class="dt"></canvas>
+<div class="title">(MZZ.DSG)</div>
+<div class="online"><span></span><i></i></div>`;
+const $ = (s) => stage.querySelector(s);
+const field = $('.field'); const base = $('.base'); const top = $('.top'); const wheel = $('.wheel');
+const dissolve = $('.dissolve'); const horse = $('.horse'); const dt = $('.dt');
+const cards = [...stage.querySelectorAll('.wc')];
+const titleEl = $('.title'); const onlineTxt = $('.online span'); const cursor = $('.online i');
 
-const $ = (s, r = stage) => r.querySelector(s);
-const $$ = (s, r = stage) => [...r.querySelectorAll(s)];
-const S = { a: $('.a'), w: $('.w'), p: $('.p'), l: $('.l'), e: $('.e') };
+/* ───────────────────────── capas de celdas (1 celda = 4 px) ───────────────────────── */
+const CELL = 4;
+const MW = Math.ceil(W / CELL); const MH = Math.ceil(H / CELL);
+const smallCv = () => { const c = document.createElement('canvas'); c.width = MW; c.height = MH; return c; };
+base.width = W; base.height = H; top.width = W; top.height = H;
+const baseCtx = base.getContext('2d'); const topCtx = top.getContext('2d');
+const eraseCv = smallCv(); const monoCv = smallCv();
+const eraseCtx = eraseCv.getContext('2d'); const monoCtx = monoCv.getContext('2d');
+const eraseImg = eraseCtx.createImageData(MW, MH); const monoImg = monoCtx.createImageData(MW, MH);
+dissolve.width = MW; dissolve.height = MH;
+const disCtx = dissolve.getContext('2d'); const disImg = disCtx.createImageData(MW, MH);
+dt.width = MW; dt.height = MH;
+const dtCtx = dt.getContext('2d'); const dtImg = dtCtx.createImageData(MW, MH);
 
-function widthAt100(text, cls = 'big', extra = '') {
-    const s = document.createElement('span');
-    s.className = cls;
-    s.style.cssText = `position:absolute;visibility:hidden;font-size:100px;${extra}`;
-    s.textContent = text;
-    stage.append(s);
-    const w = s.getBoundingClientRect().width;
-    s.remove();
-    return w;
+// Portada: en vertical ocupa todo el cuadro; en horizontal queda entera y centrada, con el grano a los lados
+function fitRect(img) {
+    const ar = img.naturalWidth / img.naturalHeight;
+    if (!HZ) { const s = Math.max(W / img.naturalWidth, H / img.naturalHeight); const w = img.naturalWidth * s; const h = img.naturalHeight * s; return [(W - w) / 2, (H - h) / 2, w, h]; }
+    const w = H * ar; return [(W - w) / 2, 0, w, H];
 }
-const fitSize = (text, width) => (100 * width) / widthAt100(text);
 
-/* ───────────────────────── canvas ───────────────────────── */
-const field = $('.field');
-const wipe = $('.wipe'); const WC = 8;
-wipe.width = Math.ceil(W / WC); wipe.height = Math.ceil(H / WC);
-const wipeCtx = wipe.getContext('2d'); const wipeImg = wipeCtx.createImageData(wipe.width, wipe.height);
-function drawWipe(t) {
-    const amt = t < CORT.cover[0] ? 0 : t < CORT.hold[0] ? (t - CORT.cover[0]) / (CORT.cover[1] - CORT.cover[0])
-        : t < CORT.hold[1] ? 1 : t < CORT.open[1] ? 1 - (t - CORT.open[0]) / (CORT.open[1] - CORT.open[0]) : 0;
-    const d = wipeImg.data;
-    if (amt <= 0 || amt >= 1.0001) { const full = amt > 0; for (let i = 0; i < d.length; i += 4) { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = full ? 255 : 0; } wipeCtx.putImageData(wipeImg, 0, 0); return; }
-    for (let y = 0; y < wipe.height; y++) for (let x = 0; x < wipe.width; x++) {
-        const i = (y * wipe.width + x) * 4;
-        d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = amt * 1.7 - (x / wipe.width) * 0.7 > bayer(x, y) ? 255 : 0;
+const IMGS = []; const LUM = [];
+function lumaOf(img) { // luminancia por celda (-1 afuera de la imagen), para el tramo en blanco y negro
+    const c = smallCv(); const x = c.getContext('2d', { willReadFrequently: true });
+    const [rx, ry, rw, rh] = fitRect(img);
+    x.drawImage(img, rx / CELL, ry / CELL, rw / CELL, rh / CELL);
+    const px = x.getImageData(0, 0, MW, MH).data; const out = new Float32Array(MW * MH);
+    for (let i = 0; i < out.length; i++) out[i] = px[i * 4 + 3] < 128 ? -1 : (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
+    return out;
+}
+
+/**
+ * Pinta `img` en `ctx` con una máscara de dither: r(x, y) ∈ [0, 1] por celda.
+ * r > bayer + BAND: la celda queda a color · r > bayer: blanco o negro según la luminancia · menos: transparente.
+ */
+const BAND = 0.16;
+function drawRevealed(ctx, img, lum, rFn) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); // lo que no es imagen también se revela (en negro): el orden reemplaza al grano
+    const [rx, ry, rw, rh] = fitRect(img);
+    ctx.drawImage(img, rx, ry, rw, rh);
+    const e = eraseImg.data; const m = monoImg.data;
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+        const i = (y * MW + x) * 4; const r = rFn(x * CELL + 2, y * CELL + 2); const b = bayer(x, y);
+        const l = Math.max(0, lum[y * MW + x]);
+        if (r > b + BAND) { e[i + 3] = 0; m[i + 3] = 0; continue; }
+        e[i + 3] = 255;
+        if (r > b) { const on = l > bayer(x + 3, y + 5) ? INK : [0, 0, 0]; m[i] = on[0]; m[i + 1] = on[1]; m[i + 2] = on[2]; m[i + 3] = 255; } else m[i + 3] = 0;
     }
-    wipeCtx.putImageData(wipeImg, 0, 0);
+    eraseCtx.putImageData(eraseImg, 0, 0); monoCtx.putImageData(monoImg, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.drawImage(eraseCv, 0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(monoCv, 0, 0, W, H);
 }
-// Caballo de la cortina (sprite 5×2, alfa = brillo, en 1 bit con Bayer), centrado: 20 % del ancho en escritorio, 50 % en celular
-const hCv = $('.horse'); const hCtx = hCv.getContext('2d'); const hImg = hCtx.createImageData(640, 450);
+const drawPlain = (ctx, img) => { ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); const [x, y, w, h] = fitRect(img); ctx.drawImage(img, x, y, w, h); };
+
+/* ───────────────────────── caballo ───────────────────────── */
+const HW = HZ ? 700 : 900; const HH = (HW * 450) / 640;
+Object.assign(horse.style, { width: `${HW}px`, height: `${HH}px`, top: `${(H - HH) / 2}px`, imageRendering: 'pixelated' });
+const hCtx = horse.getContext('2d'); const hImg = hCtx.createImageData(640, 450);
 const hOff = document.createElement('canvas'); hOff.width = 640; hOff.height = 450;
 const hOffCtx = hOff.getContext('2d', { willReadFrequently: true });
-const HW = HZ ? 384 : 540;
-Object.assign(hCv.style, { left: `${(W - HW) / 2}px`, top: `${(H - (HW * 450) / 640) / 2}px`, width: `${HW}px`, height: `${(HW * 450) / 640}px`, zIndex: 15 });
 let HORSE_IMG;
-function drawHorse(t) {
-    const [a, b] = CORT.hold;
-    if (t < a || t >= b) { hCv.style.display = 'none'; return; }
-    hCv.style.display = 'block';
-    const reveal = Math.min(clamp((t - a) / 0.22), clamp((b - 0.1 - t) / 0.2) + (t < b - 0.3 ? 1 : 0));
-    const fi = Math.floor((t - a) * 16) % 10;
+function drawHorse(t, xh, dir, reveal) {
+    horse.style.display = 'block';
+    horse.style.left = `${xh - HW / 2}px`;
+    horse.style.transform = `scaleX(${dir})`;
+    const fi = Math.floor((t - EM[0]) * 16) % 10;
     hOffCtx.clearRect(0, 0, 640, 450);
     hOffCtx.drawImage(HORSE_IMG, (fi % 5) * 640, Math.floor(fi / 5) * 450, 640, 450, 0, 0, 640, 450);
     const src = hOffCtx.getImageData(0, 0, 640, 450).data; const o = hImg.data;
     for (let y = 0; y < 450; y++) for (let x = 0; x < 640; x++) {
         const i = (y * 640 + x) * 4;
-        o[i] = o[i + 1] = o[i + 2] = 244; o[i + 3] = (src[i + 3] / 255) * Math.min(1, reveal) > bayer(x, y) ? 255 : 0;
+        o[i] = INK[0]; o[i + 1] = INK[1]; o[i + 2] = INK[2]; o[i + 3] = (src[i + 3] / 255) * reveal > bayer(x, y) ? 255 : 0;
     }
     hCtx.putImageData(hImg, 0, 0);
 }
 
-// Texto en dither: la máscara sale de elementos del DOM (misma fuente, tamaño y posición), se muestra según p (0..1)
-const DC = 4;
-function textMask(els, cw, ch) {
-    const off = document.createElement('canvas'); off.width = cw; off.height = ch;
-    const c = off.getContext('2d', { willReadFrequently: true });
-    const sr = stage.getBoundingClientRect();
-    c.fillStyle = '#fff'; c.textAlign = 'center';
-    for (const el of els) {
-        const cs = getComputedStyle(el); const fs = parseFloat(cs.fontSize);
-        const r = el.getBoundingClientRect();
-        const probe = document.createElement('span'); probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
-        el.append(probe);
-        const base = probe.getBoundingClientRect().top - sr.top; probe.remove();
-        c.font = `800 ${fs / DC}px "Inter Tight"`;
-        c.letterSpacing = `${(-0.045 * fs) / DC}px`;
-        c.fillText(el.textContent, (r.left - sr.left + r.width / 2) / DC, base / DC);
-    }
-    const px = c.getImageData(0, 0, cw, ch).data;
-    const m = new Uint8Array(cw * ch);
-    for (let i = 0; i < m.length; i++) m[i] = px[i * 4 + 3] > 120 ? 1 : 0;
-    return m;
-}
-function paintMask(cv, ctx, img, mask, p) {
-    const d = img.data;
-    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) {
-        const i = (y * cv.width + x) * 4;
-        d[i] = d[i + 1] = d[i + 2] = 244; d[i + 3] = mask[y * cv.width + x] && p > bayer(x, y) ? 255 : 0;
-    }
-    ctx.putImageData(img, 0, 0);
-}
-const hero = $('.hero'); hero.width = Math.ceil(W / DC); hero.height = Math.ceil(H / DC);
-const heroCtx = hero.getContext('2d'); const heroImg = heroCtx.createImageData(hero.width, hero.height);
-const dt = $('.dt'); dt.width = Math.ceil(W / DC); dt.height = Math.ceil(H / DC);
-const dtCtx = dt.getContext('2d'); const dtImg = dtCtx.createImageData(dt.width, dt.height);
-let heroMask; let endMask;
-
-// Cursor del sitio: disco de puntos en dither
-const curEl = $('.cur'); const curLabel = $('span', curEl);
-{
-    const c = $('canvas', curEl).getContext('2d'); c.fillStyle = '#f4f4ef';
-    for (let y = 0; y < 26; y++) for (let x = 0; x < 26; x++) {
-        const r = Math.hypot(x - 12.5, y - 12.5) / 12.5;
-        if (r < 1 && (1 - r) * 1.5 + 0.12 > bayer(x * 2, y * 2)) c.fillRect(x, y, 1, 1);
-    }
+// Recorrido del caballo y borde de revelado de cada cruce. Todo en coordenadas "espejadas" (siempre de izquierda a derecha).
+const TRAIL = 360; const SKEW = 0.18; const C1 = 0.15 * HW;
+const xStart = (k) => (k === 0 ? 0.22 * W : -0.6 * HW);
+const xEnd = W + 800;
+function crossState(t, k) {
+    const [t0, t1] = CROSS[k]; const u = clamp((t - t0) / (t1 - t0));
+    const xs = xStart(k);
+    const xm = lerp(xs, xEnd, lerp(u, ease(u), 0.5));
+    const c = lerp(xs + 300, C1, ease(clamp(u / 0.5)));
+    return { xm, edge: xm - c };
 }
 
 /* ───────────────────────── rueda ───────────────────────── */
 // Misma geometría que src/gl/wheel.js: las cartas siguen el arco de un círculo grande y se inclinan con su ángulo.
-const geo = HZ
-    ? { cw: 400, ch: 500, R: W * 0.9, step: 0.33, cy: H * 0.655 }
-    : { cw: Math.min(W * 0.58, H * 0.36), ch: Math.min(W * 0.58, H * 0.36) * 1.25, R: W * 1.1, step: 0.4, cy: H * 0.55 };
-
-function makeWheel(root, items, w, { square = false, count }) {
-    const cards = $('.cards', root); const els = items.map((it) => {
-        const e = document.createElement('div'); e.className = 'wc';
-        e.style.backgroundImage = `url(${it.img})`;
-        e.style.width = `${geo.cw}px`; e.style.height = `${square ? geo.cw : geo.ch}px`;
-        cards.append(e); return e;
+const geo = HZ ? { cw: 520, ch: 650, R: W * 0.9, step: 0.33, cy: H * 0.46 } : { cw: W * 0.58, ch: W * 0.58 * 1.25, R: W * 1.1, step: 0.4, cy: H * 0.46 };
+const wheelP = (t) => P0 + 3.4 * ease(clamp((t - ROT[0]) / (ROT[1] - ROT[0])));
+function updateWheel(t) {
+    wheel.style.transform = `scale(${1 + 0.07 * ease(clamp((t - HERO[1]) / 3.6))})`;
+    const p = wheelP(t);
+    cards.forEach((c, i) => {
+        if (t < HERO[0] || t >= DISS[1]) { c.style.display = 'none'; return; }
+        const hero = i === P0;
+        const e = hero ? 1 : ease(clamp((t - (ARRIVE + 0.14 * Math.abs(i - P0))) / 0.9));
+        if (e <= 0) { c.style.display = 'none'; return; }
+        const raw = i - p; const d = raw + (1 - e) * Math.sign(raw || 1) * 2.5; const ad = Math.abs(d);
+        if (ad > 3) { c.style.display = 'none'; return; }
+        const phi = d * geo.step;
+        const x = W / 2 + geo.R * Math.sin(phi); const y = geo.cy + geo.R * (1 - Math.cos(phi));
+        let w = geo.cw; let h = geo.ch; let tx = x - w / 2; let ty = y - h / 2;
+        if (hero && t < HERO[1]) { // de portada entera a carta
+            const s = ease(clamp((t - HERO[0]) / (HERO[1] - HERO[0])));
+            const [fx, fy, fw, fh] = fitRect(IMGS[P0]); const full = HZ ? [fx, fy, fw, fh] : [0, 0, W, H];
+            tx = lerp(full[0], x - w / 2, s); ty = lerp(full[1], y - h / 2, s); w = lerp(full[2], w, s); h = lerp(full[3], h, s);
+        }
+        c.style.display = 'block';
+        c.style.width = `${w}px`; c.style.height = `${h}px`;
+        c.style.opacity = e * (1 - clamp(ad - 2));
+        c.style.transform = `translate(${tx}px, ${ty}px) rotate(${hero && t < HERO[1] ? 0 : phi}rad)`;
     });
-    const ch = square ? geo.cw : geo.ch;
-    const wt = $('.wt', root); const bar = $('canvas', wt); const no = $('.no', wt); const nm = $('.nm', wt); const sb = $('.sb', wt);
-    const wn = $('.wn', root); const wf = $('.wf', root); const wf2 = $('.wf2', root);
-    const cap = HZ ? 110 : 150;
-    const sizes = items.map((it) => Math.min(cap, fitSize(it.name, W - 88 - (HZ ? 400 : 0))));
-    wf2.innerHTML = `${w.cta || 'Ver proyecto ↗'}<i></i>`;
-    let shown = -1;
-    const pos = (t) => { const k = clamp((t - w.t0) / w.dur, 0, w.steps); const f = frac(k); return k >= w.steps ? [w.steps, 1, k] : [Math.floor(k) + ease(clamp(f / 0.6)), f, k]; };
-    return {
-        pos,
-        update(t) {
-            const [p, f, k] = pos(t);
-            els.forEach((e, i) => {
-                const d = i - p; const ad = Math.abs(d);
-                if (ad > 3) { e.style.display = 'none'; return; }
-                const phi = d * geo.step;
-                const x = W / 2 + geo.R * Math.sin(phi); const y = geo.cy + geo.R * (1 - Math.cos(phi));
-                e.style.display = 'block';
-                e.style.opacity = 1 - clamp(ad - 2);
-                e.style.transform = `translate(${x - geo.cw / 2}px, ${y - ch / 2}px) rotate(${phi}rad)`;
-            });
-            const idx = clamp(Math.round(p), 0, items.length - 1); const it = items[idx];
-            if (idx !== shown) {
-                shown = idx;
-                no.textContent = pad(it.no); no.style.color = it.accent;
-                nm.textContent = it.name; nm.style.fontSize = `${sizes[idx]}px`;
-                sb.textContent = it.sub; wn.innerHTML = `${pad(it.no)} <b>/ ${pad(count)}</b>`;
-                wf.textContent = it.sub;
-            }
-            const moving = k < w.steps && k > 0;
-            const o = moving ? Math.abs(Math.cos(Math.PI * clamp(f / 0.6))) : 1;
-            wt.style.opacity = o; wt.style.transform = `translateY(${(1 - o) * 16}px)`;
-            ditherBar(bar, it.accent, 3, t);
-        },
-    };
-}
-const wheelP = makeWheel(S.w, PW.map((p) => ({ img: p.cover.src, name: p.title, sub: p.type, accent: accentOf(p.slug), no: Number(p.index) })), WHEEL, { count: TOTAL });
-const libItems = LIB.map((e, i) => ({ img: e.cover, name: e.title.length > 22 ? e.author : e.title, sub: `${kinds[e.kind].singular}${e.year ? ` / ${e.year}` : ''}`, accent: kinds[e.kind].accent, no: i + 1 }));
-const wheelL = makeWheel(S.l, libItems, { ...LIBW, cta: 'Ver ficha ↗' }, { square: true, count: 18 });
-
-/* ───────────────────────── proyecto ───────────────────────── */
-const pg = $('.pg'); const pi = $('.pi');
-const mkDiv = (im, cls = '') => { const d = document.createElement('div'); d.className = cls; d.style.backgroundImage = `url(${im.src})`; d.style.aspectRatio = `${im.w}/${im.h}`; return d; };
-let col1; let col2; let firstGrid;
-{
-    $('.no', pi).textContent = `${pad(Number(PROJ.index))} / ${pad(TOTAL)}`;
-    $('.no', pi).style.color = accentOf(PROJ.slug);
-    const nm = $('.nm', pi); nm.textContent = PROJ.title;
-    nm.style.fontSize = `${Math.min(HZ ? 120 : 220, fitSize(PROJ.title, HZ ? 520 : W - 88))}px`;
-    $('.ds', pi).textContent = PROJ.description;
-    $('.rows', pi).innerHTML = [['Proyecto', PROJ.index], ['Tipo', PROJ.type], ['Piezas', String(allPieces)]].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
-    const cov = mkDiv(gallery[0], 'cov'); cov.style.height = ''; pg.append(cov);
-    const grid = document.createElement('div'); grid.className = 'grid';
-    col1 = document.createElement('div'); col1.className = 'col'; col2 = document.createElement('div'); col2.className = 'col';
-    gallery.slice(1).forEach((im, i) => (i % 2 ? col2 : col1).append(mkDiv(im)));
-    grid.append(col1, col2); pg.append(grid);
-    firstGrid = col1.firstElementChild;
-    if (!HZ) pg.style.top = '1150px'; else pg.style.top = '150px';
 }
 
-/* ───────────────────────── visor ───────────────────────── */
-const lbx = $('.lbx'); const lbIm = $$('.im', lbx); const lbCt = $('.ct', lbx);
-function lbBox(im) { const maxW = HZ ? 1500 : 1000; const maxH = HZ ? 880 : 1500; const s = Math.min(maxW / im.w, maxH / im.h); return [im.w * s, im.h * s]; }
-function setLb(el, im) { const [w, h] = lbBox(im); el.style.width = `${w}px`; el.style.height = `${h}px`; el.style.backgroundImage = `url(${im.src})`; }
-setLb(lbIm[0], gallery[1]); setLb(lbIm[1], gallery[2]);
+/* ───────────────────────── texto en dither ───────────────────────── */
+function textMask(el) {
+    const off = document.createElement('canvas'); off.width = MW; off.height = MH;
+    const c = off.getContext('2d', { willReadFrequently: true });
+    const sr = stage.getBoundingClientRect();
+    const fs = parseFloat(getComputedStyle(el).fontSize); const r = el.getBoundingClientRect();
+    const probe = document.createElement('span'); probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+    el.append(probe); const baseY = probe.getBoundingClientRect().top - sr.top; probe.remove();
+    c.fillStyle = '#fff'; c.textAlign = 'center';
+    c.font = `800 ${fs / CELL}px "Inter Tight"`; c.letterSpacing = `${(-0.045 * fs) / CELL}px`;
+    c.fillText(el.textContent, (r.left - sr.left + r.width / 2) / CELL, baseY / CELL);
+    const px = c.getImageData(0, 0, MW, MH).data; const m = new Uint8Array(MW * MH);
+    for (let i = 0; i < m.length; i++) m[i] = px[i * 4 + 3] > 120 ? 1 : 0;
+    return m;
+}
+let titleMask;
 
 /* ───────────────────────── sonido ───────────────────────── */
 export const AUDIO = [];
 const au = (name, t, p = 1, arg) => AUDIO.push({ name, t, p, arg });
-au('hover', 4.55); au('click', T_CLICK.cta);
-au('wipeIn', CORT.cover[0] + 0.05); au('gallop', CORT.hold[0] + 0.05); au('wipeOut', CORT.open[0] - 0.05);
 {
-    const stepTimes = (w, soft) => { for (let s = 0; s < w.steps; s++) { const t = w.t0 + s * w.dur + 0.05; au('tick', t, 1 + (s % 2 ? 0.06 : -0.04)); au('tick', t + 0.22, 0.9, soft); } };
-    stepTimes(WHEEL); stepTimes(LIBW);
+    let t = 0.35; let step = 0.5; let n = 0; // chasquidos de grano, cada vez más seguidos
+    while (t < 2.5) { au('hover', t, 0.8 + hash(n) * 0.7); t += step * (0.7 + hash(n, 1) * 0.6); step = Math.max(0.1, step * 0.82); n++; }
 }
-au('hover', 10.85); au('click', T_CLICK.ver); au('open', T_CLICK.ver + 0.08, 0.8);
-au('hover', 13.9); au('click', T_CLICK.img); au('lbOpen', T_LB[0] + 0.05); au('tick', 15.0);
-au('hover', 17.1);
-au('open', 18.45, 0.7); au('kick', 18.5);
-au('tick', 18.75, 1.2); for (let i = 1; i < 9; i++) au('hover', 18.75 + i * 0.07, 1 + i * 0.03);
-
-/* ───────────────────────── cursor ───────────────────────── */
-const C = {}; // posiciones medidas de los destinos
-function cursorState(t) {
-    const pt = (x, y) => ({ x, y });
-    let s = null;
-    if (t >= 3.0 && t < 5.4) {
-        const u = ease(clamp((t - 3.0) / 1.6)); const a = pt(W * 0.8, H * (HZ ? 0.4 : 0.34));
-        const cta = onCam(C.cta, cam(t, ...SCN.idx));
-        s = { ...pt(lerp(a.x, cta.x, u), lerp(a.y, cta.y, u)), label: '', press: clamp(1 - Math.abs(t - T_CLICK.cta - 0.07) / 0.12), a: clamp((t - 3.0) / 0.3) * clamp((5.4 - t) / 0.15) };
-    } else if (t >= 7.3 && t < 11.5) {
-        const drift = Math.sin((t - 7.3) * 1.5) * W * 0.07;
-        const hov = ease(clamp((t - 10.3) / 0.55));
-        const base = pt(W / 2 + drift, geo.cy - geo.ch * 0.1);
-        const ver = onCam(C.ver, cam(t, ...SCN.wheel));
-        s = { x: lerp(base.x, ver.x, hov), y: lerp(base.y, ver.y - 8, hov), label: hov > 0.6 ? '' : 'Arrastrar', press: clamp(1 - Math.abs(t - T_CLICK.ver - 0.07) / 0.12), a: clamp((t - 7.3) / 0.3) * clamp((11.5 - t) / 0.15) };
-    } else if (t >= 12.9 && t < 14.75) {
-        const r = firstGrid.getBoundingClientRect(); const sr = stage.getBoundingClientRect();
-        const tx = clamp(r.left - sr.left + r.width * 0.55, 80, W - 120); const ty = clamp(r.top - sr.top + r.height * 0.4, 260, H - 200);
-        const u = ease(clamp((t - 12.9) / 0.9));
-        s = { x: lerp(W * 0.7, tx, u), y: lerp(H * 0.62, ty, u), label: 'Ampliar', press: clamp(1 - Math.abs(t - T_CLICK.img - 0.07) / 0.12), a: clamp((t - 12.9) / 0.3) * clamp((14.75 - t) / 0.15) };
-    } else if (t >= 15.9 && t < 17.4) {
-        s = { x: W / 2 + Math.sin((t - 15.9) * 2) * W * 0.06, y: geo.cy, label: 'Arrastrar', press: 0, a: clamp((t - 15.9) / 0.3) * clamp((17.4 - t) / 0.2) };
-    }
-    return s;
-}
+au('gallop', EM[0] + 0.05);
+CROSS.forEach(([t0, t1]) => au('gallopRun', t0, 1, t1 - t0));
+au('lbOpen', HERO[0] + 0.05);
+for (let i = 0; i < PW.length; i++) { const k = Math.abs(i - P0); if (k > 0 && k <= 3) au('tick', ARRIVE + 0.14 * k + 0.45, 0.9 + k * 0.06); }
+for (let t = ROT[0], prev = Math.floor(wheelP(ROT[0]) + 0.5); t < ROT[1]; t += 1 / 300) { const cur = Math.floor(wheelP(t) + 0.5); if (cur !== prev) { au('tick', t, 1 + (cur % 2 ? 0.05 : -0.04)); prev = cur; } }
+au('wipeIn', DISS[0] + 0.05); au('wipeOut', TITLE[0]);
+au('open', CRISP, 0.7); au('kick', CRISP + 0.05);
+au('tick', 18.7, 1.2); for (let i = 1; i < 9; i++) au('hover', 18.7 + i * 0.07, 1 + i * 0.03);
 
 /* ───────────────────────── render ───────────────────────── */
-const cam = (t, a, b) => 1 + 0.045 * ease(clamp((t - a) / (b - a)));
-const onCam = (pt, s) => ({ x: W / 2 + (pt.x - W / 2) * s, y: H / 2 + (pt.y - H / 2) * s });
-let typed = 0;
+let baseKey = ''; let lastTopClear = false;
 function update(t) {
-    // fondo: el campo de dither del home, suave
-    ditherField(field, '#2a2a28', t, 8, 0.14 * clamp(t / 1.2));
+    // grano de fondo: denso y claro al principio y al final, casi invisible en el medio
+    let a = 0.16; let dens = 0.08;
+    if (t < EM[1]) { const k = ease(clamp(t / 2.0)); dens = 0.1 + 0.24 * k * (1 - 0.8 * ease(clamp((t - EM[0]) / 1.0))) + 0.04 * Math.sin(t * 2.4); a = lerp(0.35, 0.95, k) * lerp(1, 0.25, ease(clamp((t - EM[0]) / 1.0))); }
+    else if (t >= DISS[0] + 0.4) { const up = ease(clamp((t - (DISS[0] + 0.4)) / 1.4)); const down = ease(clamp((t - CRISP) / 1.2)); dens = lerp(0.08, 0.3, up) * lerp(1, 0.3, down) + 0.03 * Math.sin(t * 2.4) * up; a = lerp(0.16, 0.9, up) * lerp(1, 0.25, down); }
+    ditherField(field, `rgba(${INK[0]},${INK[1]},${INK[2]},${clamp(a)})`, t, 8, dens);
 
-    // escenas
-    const vis = (el, o, disp = 'block') => { el.style.display = o > 0.001 ? disp : 'none'; el.style.opacity = o; };
-    vis(S.a, op(t, SCN.idx, 0.5, 0.05)); vis(S.w, op(t, SCN.wheel, 0.05, 0.45)); vis(S.p, op(t, SCN.proj, 0.4, 0.45));
-    vis(S.l, op(t, SCN.lib, 0.4, 0.4)); vis(S.e, op(t, SCN.end, 0.5, 0.01));
-    // empuje de cámara muy lento sobre cada escena
-    [[S.a, SCN.idx], [S.w, SCN.wheel], [S.p, SCN.proj], [S.l, SCN.lib]].forEach(([el, [a, b]]) => { el.style.transform = `scale(${cam(t, a, b)})`; });
-    const navAlpha = clamp((t - 0.5) / 0.5);
-    $('.nav').style.opacity = navAlpha;
-    $$('.nav .links a').forEach((a, i) => {
-        const on = i === 0 ? op(t, [0.8, 5.5], 0.3, 0.3) : i === 1 ? op(t, [6.6, 15.5], 0.3, 0.3) : i === 2 ? op(t, [15.4, 17.6], 0.3, 0.3) : 0;
-        a.style.setProperty('--on', on);
-    });
+    // portadas y caballo
+    let hx = null; let dir = 1; let reveal = 1;
+    if (t >= EM[0] && t < CROSS[0][0]) { hx = xStart(0); reveal = ease(clamp((t - EM[0]) / (EM[1] - EM[0]) / 0.9)); }
+    let activeK = -1; let staticK = -1;
+    CROSS.forEach(([t0, t1], k) => { if (t >= t0 && t < t1 + 0.2) activeK = k; else if (t >= t1 + 0.2) staticK = k; });
+    base.style.display = top.style.display = t < HERO[1] && t >= CROSS[0][0] ? 'block' : 'none';
+    base.style.opacity = top.style.opacity = 1 - ease(clamp((t - HERO[0]) / (HERO[1] - HERO[0])));
+    if (activeK >= 0) {
+        const [, , d] = CROSS[activeK]; const { xm, edge } = crossState(t, activeK);
+        dir = d; hx = d > 0 ? xm : W - xm;
+        const key = `b${activeK - 1}`;
+        if (baseKey !== key) { if (activeK > 0) drawPlain(baseCtx, IMGS[COV[activeK - 1]]); else baseCtx.clearRect(0, 0, W, H); baseKey = key; }
+        drawRevealed(topCtx, IMGS[COV[activeK]], LUM[activeK], (x, y) => clamp((edge - (d > 0 ? x : W - x) - (y - H / 2) * SKEW) / TRAIL));
+        lastTopClear = false;
+    } else if (staticK >= 0 && t < HERO[1]) {
+        const key = `s${staticK}`;
+        if (baseKey !== key) { drawPlain(baseCtx, IMGS[COV[staticK]]); baseKey = key; }
+        if (!lastTopClear) { topCtx.clearRect(0, 0, W, H); lastTopClear = true; }
+    }
+    if (hx !== null) drawHorse(t, hx, dir, reveal); else horse.style.display = 'none';
 
-    // A · Index
-    if (S.a.style.display !== 'none') {
-        $('.ghost', S.a).style.transform = `translateX(${(HZ ? -300 : -420) - t * 14}px)`;
-        const words = (el, t0, per) => { // el con palabras que aparecen una a una
-            if (!el.dataset.w) { el.dataset.w = '1'; el.innerHTML = el.textContent.split(' ').map((w) => `<span style="opacity:0">${w}</span>`).join(' '); }
-            [...el.children].forEach((s, i) => { s.style.opacity = clamp((t - t0 - i * per) / 0.18); });
-        };
-        words($('.p1', S.a), 1.4, 0.06); words($('.p2', S.a), 2.6, 0.06);
-        $$('.menu li', S.a).forEach((li, i) => { li.style.opacity = clamp((t - 3.4 - i * 0.18) / 0.3); li.style.transform = `translateY(${(1 - clamp((t - 3.4 - i * 0.18) / 0.3)) * 12}px)`; });
-        $('.cta', S.a).style.opacity = clamp((t - 3.9) / 0.4);
-        $('.cta i', S.a).style.transform = `scaleX(${ease(clamp((t - 4.5) / 0.4))})`;
-        const p = 0.9 * ease(clamp((t - 1.0) / 1.7));
-        paintMask(hero, heroCtx, heroImg, heroMask, p);
-    }
-    // cortina con caballo
-    drawWipe(t); drawHorse(t);
+    updateWheel(t);
 
-    // Trabajos
-    if (S.w.style.display !== 'none') wheelP.update(t);
-    // Proyecto: la columna izquierda queda fija en escritorio; en celular la info sube con el scroll
-    if (S.p.style.display !== 'none') {
-        const D = HZ ? 1350 : 1900;
-        const y = -D * ease(clamp((t - SCROLL[0]) / (SCROLL[1] - SCROLL[0])));
-        pg.style.transform = `translateY(${y}px)`;
-        pi.style.transform = HZ ? 'none' : `translateY(${y}px)`;
-        col2.style.transform = `translateY(${y * 0.1}px)`;
+    // disolución de la rueda: desde los bordes hacia el centro, cada celda pasa por blanco y negro y se apaga
+    const di = disImg.data;
+    if (t >= DISS[0] && t < DISS[1] + 0.9) {
+        const u = (t - DISS[0]) / (DISS[1] - DISS[0]); const f = Math.floor(t * 15);
+        const back = t > DISS[1]; // pasada la disolución, el negro se retira parejo y deja ver el grano
+        for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+            const i = (y * MW + x) * 4; const dn = clamp(Math.hypot((x / MW - 0.5), (y / MH - 0.5) * (H / W)) * (HZ ? 1.15 : 1.6));
+            const amt = back ? 2 * (1 - (t - DISS[1]) / 0.9) : u * 1.8 - (1 - dn) * 0.8; const b = bayer(x, y);
+            if (amt > b + 0.1) { di[i] = di[i + 1] = di[i + 2] = 0; di[i + 3] = 255; }
+            else if (amt > b) { const v = hash(x, y, f) > 0.5 ? 255 : 0; di[i] = di[i + 1] = di[i + 2] = v; di[i + 3] = 255; }
+            else di[i + 3] = 0;
+        }
+        disCtx.putImageData(disImg, 0, 0); dissolve.style.display = 'block';
+    } else dissolve.style.display = 'none';
+
+    // título
+    const crisp = t >= CRISP;
+    titleEl.style.visibility = crisp ? 'visible' : 'hidden';
+    dt.style.display = t >= TITLE[0] && !crisp ? 'block' : 'none';
+    if (t >= TITLE[0] && !crisp) {
+        const p = ease(clamp((t - TITLE[0]) / (TITLE[1] - TITLE[0]))); const d = dtImg.data;
+        for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+            const i = (y * MW + x) * 4; d[i] = INK[0]; d[i + 1] = INK[1]; d[i + 2] = INK[2]; d[i + 3] = titleMask[y * MW + x] && p > bayer(x, y) ? 255 : 0;
+        }
+        dtCtx.putImageData(dtImg, 0, 0);
     }
-    // Visor
-    const lbo = clamp((t - T_LB[0]) / 0.3) * clamp((T_LB[1] - t) / 0.35);
-    lbx.style.display = lbo > 0.001 ? 'block' : 'none'; lbx.style.opacity = lbo;
-    if (lbo > 0) {
-        const sw = ease(clamp((t - 15.0) / 0.3));
-        lbIm[0].style.opacity = 1 - sw; lbIm[1].style.opacity = sw;
-        const sc = lerp(0.95, 1, easeOut(clamp((t - T_LB[0]) / 0.4)));
-        lbIm.forEach((e) => { e.style.transform = `translate(-50%,-50%) scale(${sc})`; });
-        lbCt.textContent = `${pad(sw < 0.5 ? 2 : 3)} / ${pad(allPieces)}`;
-    }
-    // Biblioteca
-    if (S.l.style.display !== 'none') wheelL.update(t);
-    // Cierre
-    if (S.e.style.display !== 'none') {
-        const p = ease(clamp((t - 17.55) / 0.95));
-        const crisp = t >= 18.5;
-        $('.title', S.e).style.visibility = crisp ? 'visible' : 'hidden';
-        dt.style.display = crisp ? 'none' : 'block';
-        if (!crisp) paintMask(dt, dtCtx, dtImg, endMask, p);
-        const n = Math.floor(clamp((t - 18.75) / 0.07, 0, 9));
-        $('.online span', S.e).textContent = 'YA ONLINE'.slice(0, n);
-        $('.online i', S.e).style.visibility = t >= 18.7 && (n < 9 || Math.floor((t - 18.75) / 0.5) % 2 === 0) ? 'visible' : 'hidden';
-    }
-    // cursor
-    const cs = cursorState(t);
-    if (cs) {
-        curEl.style.opacity = cs.a;
-        curEl.style.transform = `translate(${cs.x}px, ${cs.y}px) scale(${1 - 0.3 * cs.press})`;
-        if (curLabel.textContent !== cs.label) curLabel.textContent = cs.label;
-        curLabel.style.display = cs.label ? 'block' : 'none';
-    } else curEl.style.opacity = 0;
-    void typed;
+    const n = Math.floor(clamp((t - 18.7) / 0.07, 0, 9));
+    onlineTxt.textContent = 'YA ONLINE'.slice(0, n);
+    cursor.style.visibility = t >= 18.65 && (n < 9 || Math.floor((t - 18.7) / 0.5) % 2 === 0) ? 'visible' : 'hidden';
 }
 
 export function render(t) { update(t); }
@@ -397,30 +287,17 @@ window.DURATION = DURATION;
 
 /* ───────────────────────── arranque ───────────────────────── */
 async function boot() {
-    await Promise.all([
-        ['800 100px "Inter Tight"', '700 40px "Inter Tight"', '300 30px "Roboto Mono"', '400 30px "Roboto Mono"', '500 30px "Roboto Mono"', '600 30px "Roboto Mono"', '700 40px "Space Mono"']
-            .map((f) => document.fonts.load(f)),
-    ].flat());
+    await Promise.all(['800 100px "Inter Tight"', '600 30px "Roboto Mono"'].map((f) => document.fonts.load(f)));
     await document.fonts.ready;
     HORSE_IMG = await loadImg('/images/transition/caballo.webp');
-    const urls = [...PW.map((p) => p.cover.src), ...LIB.map((e) => e.cover), ...gallery.map((g) => g.src)];
-    await Promise.all(urls.map(loadImg));
+    await Promise.all(PW.map(async (p, i) => { IMGS[i] = await loadImg(p.cover.src); cards[i].style.backgroundImage = `url(${p.cover.src})`; }));
+    COV.forEach((i, k) => { LUM[k] = lumaOf(IMGS[i]); });
 
-    // medidas: se muestran todas las escenas (invisibles) para leer posiciones reales
-    const all = [S.a, S.w, S.p, S.l, S.e];
-    all.forEach((s) => { s.style.display = 'block'; s.style.opacity = 0; });
-    const size = Math.min(HZ ? 190 : 205, fitSize('(MZZ.DSG)', HZ ? 800 : W - 88));
-    const ht1 = $('.ht1'); const ht2 = $('.ht2');
-    ht1.style.fontSize = ht2.style.fontSize = `${size}px`;
-    if (HZ) { ht1.style.top = '430px'; ht2.style.top = '430px'; ht2.style.left = 'auto'; ht2.style.right = '44px'; }
-    else { ht1.style.top = '560px'; ht2.style.top = `${560 + size * 0.95}px`; }
-    const et = $('.title', S.e); et.style.fontSize = `${fitSize('(MZZ.DSG)', W * (HZ ? 0.74 : 0.93))}px`;
-    const center = (el) => { const r = el.getBoundingClientRect(); const sr = stage.getBoundingClientRect(); return { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 }; };
-    C.cta = center($('.cta', S.a)); C.ver = center($('.wf2', S.w));
-    heroMask = textMask([ht1, ht2], hero.width, hero.height);
-    endMask = textMask([et], dt.width, dt.height);
-    all.forEach((s) => { s.style.display = 'none'; s.style.opacity = 1; });
-    $('.title', S.e).style.visibility = 'hidden';
+    // el título se mide una vez (ancho y línea base reales) y se guarda su máscara
+    const w100 = (() => { const s = document.createElement('span'); s.style.cssText = 'position:absolute;visibility:hidden;font:800 100px var(--display);letter-spacing:-.045em;white-space:nowrap'; s.textContent = '(MZZ.DSG)'; stage.append(s); const w = s.getBoundingClientRect().width; s.remove(); return w; })();
+    titleEl.style.fontSize = `${(100 * W * (HZ ? 0.74 : 0.93)) / w100}px`;
+    titleEl.style.visibility = 'hidden'; titleEl.style.display = 'block';
+    titleMask = textMask(titleEl);
 
     window.ready = true;
     render(0);

@@ -1,103 +1,24 @@
-/* Promo: recorrido por las piezas del portfolio. 1080×1920 (vertical) o 1920×1080 (html.h). Todo en px: el escenario no es responsive. */
-:root { --W: 1080px; --H: 1920px; --display: 'Inter Tight', Helvetica, Arial, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace; --num: 'Space Mono', ui-monospace, monospace; --dim: #8a8a84; }
+/* Promo "del ruido a la imagen". 1080×1920 (vertical) o 1920×1080 (html.h). Todo en px: el escenario no es responsive. */
+:root { --W: 1080px; --H: 1920px; --display: 'Inter Tight', Helvetica, Arial, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace; --ink: #f4f4ef; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: #111; overflow: hidden; height: 100%; }
 #viewport { position: fixed; inset: 0; display: grid; place-items: center; }
-#stage { position: relative; width: var(--W); height: var(--H); overflow: hidden; background: #000; color: #f4f4ef; font-family: var(--display); flex: none; }
+#stage { position: relative; width: var(--W); height: var(--H); overflow: hidden; background: #000; color: var(--ink); font-family: var(--display); flex: none; }
 html.render #viewport { display: block; }
 html.render #stage { position: absolute; left: 0; top: 0; transform: none !important; }
 #stage > * { position: absolute; }
 canvas { image-rendering: pixelated; }
-.field, .wipe, .hero, .dt { left: 0; top: 0; width: var(--W); height: var(--H); pointer-events: none; }
-.sc { inset: 0; display: none; overflow: hidden; }
-.big { font-family: var(--display); font-weight: 800; letter-spacing: -0.04em; line-height: .86; white-space: nowrap; }
-
-/* Nav (persistente, como el del sitio) */
-.nav { left: 0; right: 0; top: 0; height: 120px; z-index: 20; mix-blend-mode: difference; }
-.nav .logo { position: absolute; left: 44px; top: 38px; font: 700 34px/.92 var(--display); letter-spacing: -.03em; }
-.nav .logo sup { font-size: .5em; vertical-align: top; }
-.nav .links { position: absolute; left: 0; right: 0; top: 40px; display: none; justify-content: center; gap: 46px; font: 700 29px/1 var(--display); text-transform: uppercase; letter-spacing: -.02em; }
-.nav .links a { position: relative; padding-bottom: 6px; opacity: .92; }
-.nav .links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: currentColor; transform: scaleX(var(--on, 0)); transform-origin: left; }
-.nav .links sup { font: 700 .45em var(--num); margin-left: 3px; vertical-align: top; opacity: .7; }
-.nav .tools { position: absolute; right: 44px; top: 44px; display: flex; gap: 22px; align-items: center; font: 700 26px/1 var(--display); text-transform: uppercase; }
-.nav .tools .menu { display: block; }
-html.h .nav .links { display: flex; }
-html.h .nav .tools .menu { display: none; }
-.nav .spk { width: 26px; height: 26px; opacity: .85; }
-
-/* Cursor del sitio */
-.cur { z-index: 30; left: 0; top: 0; width: 0; height: 0; opacity: 0; }
-.cur canvas { position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; }
-.cur span { position: absolute; left: 34px; top: -14px; font: 600 22px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; background: #000; padding: 5px 9px; }
-
-/* A · Index */
-.ghost { position: absolute; top: 12%; font: 800 1500px/.8 var(--display); letter-spacing: -.06em; color: rgba(255,255,255,.04); white-space: nowrap; }
-.a p { position: absolute; font: 300 33px/1.5 var(--mono); }
-.a .p1 { left: 44px; top: 190px; width: 820px; }
-.a .p2 { left: 44px; top: 1120px; width: 820px; }
-.a .ht { position: absolute; left: 44px; visibility: hidden; font-weight: 800; letter-spacing: -.045em; line-height: .8; white-space: nowrap; }
-.a .menu { position: absolute; left: 44px; top: 1425px; list-style: none; font: 400 38px/1.3 var(--mono); }
-.a .menu sup { font: 400 .45em var(--mono); margin-right: 10px; vertical-align: top; color: var(--dim); }
-.a .cta { position: absolute; left: 44px; bottom: 120px; font: 500 46px/1 var(--mono); text-transform: uppercase; letter-spacing: .04em; padding-bottom: 12px; }
-.a .cta i { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: currentColor; transform-origin: left; transform: scaleX(0); }
-html.h .a .p1 { left: 500px; top: 100px; width: 440px; font-size: 28px; }
-html.h .a .p2 { left: 500px; top: auto; bottom: 90px; width: 440px; font-size: 28px; }
-html.h .a .menu { top: auto; bottom: 70px; font-size: 32px; }
-html.h .a .cta { left: auto; right: 44px; bottom: 120px; }
-html.h .ghost { font-size: 1100px; top: 4%; }
-
-/* Rueda (Trabajos y Biblioteca) */
-.wc { position: absolute; left: 0; top: 0; background-size: cover; background-position: center; will-change: transform; }
-.wt { position: absolute; left: 44px; top: 180px; right: 44px; }
-.wt canvas { display: block; width: 330px; height: 14px; margin-bottom: 26px; }
-.wt .no { font: 700 44px/1 var(--num); margin-bottom: 14px; }
-.wt .nm { font-weight: 800; letter-spacing: -.045em; line-height: .86; white-space: nowrap; }
-.wt .sb { font: 400 28px/1.3 var(--mono); color: var(--dim); margin-top: 16px; }
-.wn { position: absolute; right: 44px; top: 190px; font: 700 40px/1 var(--num); text-align: right; }
-.wn b { color: var(--dim); font-weight: 700; }
-.wf { position: absolute; left: 44px; bottom: 60px; font: 400 24px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-.wf2 { position: absolute; left: 0; right: 0; bottom: 56px; text-align: center; font: 600 30px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
-.wf2 i { display: block; margin: 12px auto 0; height: 3px; width: 230px; background: currentColor; }
-.filters { position: absolute; left: 44px; top: 128px; display: flex; gap: 30px; font: 600 24px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
-.filters b { color: #f4f4ef; }
-.filters sup { font-size: .6em; margin-left: 2px; vertical-align: top; }
-html.h .wt { top: 150px; }
-html.h .wn { top: 160px; }
-html.h .filters { top: 110px; left: 44px; }
-
-/* Proyecto */
-.pi { position: absolute; left: 44px; top: 170px; width: 992px; }
-.pi .no { font: 700 40px/1 var(--num); margin-bottom: 22px; }
-.pi .nm { font-weight: 800; letter-spacing: -.045em; line-height: .86; white-space: nowrap; }
-.pi .ds { font: 300 31px/1.5 var(--mono); margin-top: 40px; }
-.pi .rows { margin-top: 36px; border-top: 1px solid #333; font: 400 22px/1 var(--mono); text-transform: uppercase; letter-spacing: .05em; }
-.pi .rows div { display: flex; justify-content: space-between; gap: 30px; padding: 17px 0; border-bottom: 1px solid #333; }
-.pi .rows span { color: var(--dim); }
-.pi .rows b { font-weight: 500; text-align: right; }
-.pg { position: absolute; left: 0; top: 0; width: var(--W); will-change: transform; }
-.pg .cov { display: block; width: 100%; aspect-ratio: 1080/1440; background-size: cover; background-position: center; }
-.pg .grid { display: flex; gap: 16px; margin-top: 16px; align-items: flex-start; }
-.pg .col { flex: 1; display: flex; flex-direction: column; gap: 16px; will-change: transform; }
-.pg .col div { width: 100%; background-size: cover; background-position: center; }
-html.h .pi { width: 560px; top: 150px; }
-html.h .pi .ds { font-size: 26px; }
-html.h .pg { left: 700px; width: 1176px; }
-html.h .pg .cov { width: 640px; margin-left: 268px; }
-.lbx { inset: 0; background: rgba(0,0,0,.97); z-index: 25; opacity: 0; display: none; }
-.lbx .im { position: absolute; left: 50%; top: 50%; background-size: contain; background-repeat: no-repeat; background-position: center; transform: translate(-50%, -50%); }
-.lbx .ct { position: absolute; left: 44px; top: 150px; font: 700 34px/1 var(--num); }
-.lbx .cl { position: absolute; right: 44px; top: 150px; font: 600 28px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
-html.h .lbx .ct, html.h .lbx .cl { top: 60px; }
-
-/* Cierre */
-.e .title { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-weight: 800; letter-spacing: -.045em; line-height: .8; white-space: nowrap; transform: translateY(-62%); }
-.e .online { position: absolute; left: 0; right: 0; top: 50%; margin-top: 90px; text-align: center; font: 600 64px/1 var(--mono); letter-spacing: .14em; }
-.e .online i { display: inline-block; width: .55em; height: .86em; margin-left: .16em; background: currentColor; vertical-align: -.06em; }
-html.h .e .online { margin-top: 70px; font-size: 56px; }
+.field, .base, .top, .dissolve, .dt { left: 0; top: 0; width: var(--W); height: var(--H); pointer-events: none; }
+.base, .top { image-rendering: auto; }
+.wheel { inset: 0; transform-origin: 50% 50%; }
+.wc { position: absolute; left: 0; top: 0; background-size: cover; background-position: center; will-change: transform; display: none; }
+.horse { display: none; mix-blend-mode: difference; }
+.title { left: 0; right: 0; top: 50%; text-align: center; font-weight: 800; letter-spacing: -.045em; line-height: .8; white-space: nowrap; transform: translateY(-62%); visibility: hidden; }
+.online { left: 0; right: 0; top: 50%; margin-top: 100px; text-align: center; font: 600 64px/1 var(--mono); letter-spacing: .14em; height: 64px; }
+.online i { display: inline-block; width: .55em; height: .86em; margin-left: .16em; background: currentColor; vertical-align: -.06em; }
+html.h .online { margin-top: 80px; font-size: 56px; }
 
 /* Revisión en el navegador */
 #ui { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 12px; align-items: center; padding: 10px 16px; background: rgba(0,0,0,.8); color: #fff; z-index: 99; font: 14px var(--mono); }
 #ui[hidden] { display: none; }
 #scrub { flex: 1; }
-html:not(.h) .wf { display: none; }
