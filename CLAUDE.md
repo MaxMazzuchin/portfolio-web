@@ -53,3 +53,5 @@ El usuario habla español rioplatense: responder en español.
 - Después de cada tanda de cambios: `npm run build` debe pasar, hacer commit y `git push` (el repo es privado: `portfolio-v3`).
 - Los mensajes de commit terminan con `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - Ojo: desde la sesión de Claude Code no hay credenciales de GitHub ni `gh`; el `git push` lo hace el usuario (o configura un token).
+
+- **Video showcase** (`scripts/showcase/`, 20 s a 96 BPM, 16:9 y 9:16): con `npm run dev -- --port 5199` corriendo, `node scripts/showcase/record.mjs desk|mob` graba el sitio cuadro a cuadro con el reloj virtual de Playwright (`pauseAt` es obligatorio: sin pausar, el reloj falso sigue en tiempo real), `audio.mjs` renderiza base rítmica + efectos registrados (`window.__sfxLog` en `sound.js`, `renderCues`) y `edit.mjs` arma el MP4 (salida en `originales/showcase/`, ignorada por git). El guion y los tiempos están en `cues.mjs`. En mobile se navega con links sintéticos porque el menú está plegado. `sound.js` tiene un efecto `kick` que solo usa el video.

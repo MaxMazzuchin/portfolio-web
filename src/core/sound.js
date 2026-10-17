@@ -123,6 +123,8 @@ const SOUNDS = {
     gallop: (t) => [0, 0.625].forEach((d, s) => stride(t + d, s ? 0.55 : 1)),
     // Huevo de pascua: el caballo cruza la pantalla; `secs` es lo que dura el cruce (una zancada cada 0,625 s).
     gallopRun: (t, p, secs = 3) => { for (let k = 0; k * 0.625 < secs; k++) stride(t + k * 0.625, 0.8); },
+    // Base rítmica del video showcase (scripts/showcase): el casco fuerte suelto. No lo usa el sitio.
+    kick: (t) => hoof(t, true, 1.2),
     // Minijuego del 404.
     jump: (t, p) => tone(t, 480 * p, 0.06, { type: 'square', peak: 0.28, fEnd: 900 * p }),
     crash: (t) => { noise(t, 0.2, { buf: crushed, f: 320, q: 0.8, peak: 0.6 }); tone(t, 200, 0.22, { type: 'square', peak: 0.4, fEnd: 50 }); },
@@ -138,6 +140,8 @@ export const sound = {
 
     /** p = variación de tono (1 = sin cambio). */
     play(name, p = 1, arg) {
+        // Grabación del video showcase (scripts/showcase): anota cada efecto con el reloj de la página, suene o no.
+        if (window.__sfxLog) window.__sfxLog.push({ name, p, arg, t: performance.now() / 1000 });
         if (!on || !boot()) return;
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         const now = ctx.currentTime;
@@ -153,6 +157,33 @@ export const sound = {
         if (v) this.play('click');
     },
 };
+
+/**
+ * Renderiza efectos a un buffer con las mismas recetas del sitio (para el audio del video showcase).
+ * cues = [{ name, t, p, arg }] (t en segundos). Devuelve un AudioBuffer estéreo; no toca el contexto en vivo.
+ */
+export async function renderCues(cues, secs, { sampleRate = 48000, gain = VOLUME } = {}) {
+    const live = { ctx, master, white, crushed };
+    ctx = new OfflineAudioContext(2, Math.ceil(secs * sampleRate), sampleRate);
+    master = ctx.createGain();
+    master.gain.value = gain;
+    const comp = ctx.createDynamicsCompressor();
+    master.connect(comp);
+    comp.connect(ctx.destination);
+    white = ctx.createBuffer(1, sampleRate, sampleRate);
+    crushed = ctx.createBuffer(1, sampleRate, sampleRate);
+    const w = white.getChannelData(0);
+    const c = crushed.getChannelData(0);
+    let hold = 0;
+    let v = 0;
+    for (let i = 0; i < sampleRate; i++) {
+        w[i] = Math.random() * 2 - 1;
+        if (hold-- <= 0) { hold = 5; v = Math.random() < 0.5 ? -1 : 1; }
+        c[i] = v;
+    }
+    for (const q of cues) SOUNDS[q.name]?.(q.t, q.p ?? 1, q.arg);
+    try { return await ctx.startRendering(); } finally { ({ ctx, master, white, crushed } = live); }
+}
 
 function paint() {
     document.querySelectorAll('.sfx-toggle').forEach((b) => {
