@@ -1,15 +1,12 @@
 /**
- * Promo del estreno del portfolio: motion graphics en DOM + canvas, una sola timeline GSAP pausada.
- * `render(t)` deja todo en el segundo t (determinista: se llama una vez por cuadro). `AUDIO` es la lista de sonidos
- * con su tiempo, salida de las mismas constantes que la imagen, así audio y video no se desfasan.
+ * Promo del estreno: un recorrido calmo por las piezas del portfolio (nav, rueda, página de proyecto, visor, biblioteca),
+ * armadas en DOM + canvas con la tipografía, el dither y los datos reales del sitio. Todo es función del tiempo:
+ * `render(t)` deja el escenario en el segundo t (una llamada por cuadro). `AUDIO` es la lista de sonidos con su tiempo.
  *   ?f=v (1080×1920, default) | ?f=h (1920×1080) · ?render para grabar (sin interfaz).
  */
-import gsap from 'gsap';
-import { BAYER8 } from '/src/core/dither.js';
-import { nParts } from '/src/brand/nyro-logo.js';
-import { logoSVG } from '/src/brand/cb-logo.js';
-import { blueSVG } from '/src/brand/blue-logo.js';
-import { WAVE_A, WAVE_B } from '/src/brand/blue-paths.js';
+import { BAYER8, ditherField, ditherBar } from '/src/core/dither.js';
+import { projects } from '/src/data/work.js';
+import { library, kinds } from '/src/data/library.js';
 import { accentOf } from '/src/data/accents.js';
 
 const Q = new URLSearchParams(location.search);
@@ -19,8 +16,6 @@ const W = HZ ? 1920 : 1080;
 const H = HZ ? 1080 : 1920;
 export const DURATION = 20;
 const FPS = 30;
-const B = 0.625; // un pulso a 96 BPM = una zancada del galope
-const E = B / 2;
 
 document.documentElement.classList.toggle('h', HZ);
 document.documentElement.classList.toggle('render', RENDER);
@@ -30,65 +25,73 @@ document.documentElement.style.setProperty('--H', `${H}px`);
 const lerp = (a, b, k) => a + (b - a) * k;
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const ease = (k) => k * k * (3 - 2 * k);
-const pulse = (t, dt = B, k = 7) => Math.exp(-(((t % dt) + dt) % dt) * k); // 1 en cada golpe, cae rápido
-const hash = (a, b = 0, c = 0) => { const s = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return s - Math.floor(s); };
+const easeOut = (k) => 1 - (1 - k) ** 3;
 const bayer = (x, y) => BAYER8[y & 7][x & 7];
+const pad = (n) => String(n).padStart(2, '0');
+const frac = (v) => v - Math.floor(v);
+
+/* ───────────────────────── línea de tiempo ───────────────────────── */
+const SCN = { idx: [0.7, 5.4], wheel: [6.45, 11.75], proj: [11.25, 15.8], lib: [15.35, 17.8], end: [17.45, 20] };
+const op = (t, [a, b], fi = 0.45, fo = 0.45) => clamp((t - a) / fi) * clamp((b - t) / fo);
+const CORT = { cover: [5.1, 5.55], hold: [5.55, 6.45], open: [6.45, 6.9] }; // cortina del sitio, con el caballo en el medio
+const WHEEL = { t0: 7.1, dur: 0.95, steps: 5 };
+const LIBW = { t0: 15.85, dur: 0.75, steps: 2 };
+const SCROLL = [11.55, 14.7];
+const T_CLICK = { cta: 5.0, ver: 11.2, img: 14.4 };
+const T_LB = [14.5, 15.8];
 
 /* ───────────────────────── datos ───────────────────────── */
-const COVERS = [
-    ['album-artwork', 'ALBUM ARTWORK', '01'], ['curu', 'CURU', '02'], ['sin-datos', 'SIN DATOS', '04'], ['i-life', 'I-LIFE', '05'],
-    ['nyro', 'NYRO', '06'], ['outframe', 'OUTFRAME', '09'], ['d2x', 'D2X', '10'], ['100-posters', '100 POSTERS', '12'],
-];
-const WORDS = ['IDENTIDAD', 'EDITORIAL', 'MOTION', 'MARCA'];
-const TAPE = 'IDENTIDAD VISUAL — DIRECCIÓN DE ARTE — SISTEMAS GRÁFICOS — EDITORIAL — MOTION — ';
+const PW = projects.slice(0, 10);
+const PROJ = projects.find((p) => p.slug === 'sin-datos');
+const LIB = library.filter((e) => e.cover).slice(0, 8);
+const TOTAL = projects.length;
 
-// Tiempos de las escenas (8 compases de 2,5 s)
-const T = { s1: [0, 2.5], s2: [2.5, 5], s3: [5, 7.5], s4: [7.5, 10], s5: [10, 12.5], s6: [12.5, 15], s7: [15, 17.45], s8: [17.45, 20] };
+const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(i); i.src = src; });
 
-/* ───────────────────────── carga ───────────────────────── */
-const loadImg = (src, fallback) => new Promise((res) => {
-    const i = new Image();
-    i.onload = () => res(i);
-    i.onerror = () => { if (fallback) { const j = new Image(); j.onload = () => res(j); j.src = fallback; } else res(i); };
-    i.src = src;
-});
+const gallery = (() => {
+    const imgs = [PROJ.cover];
+    for (const s of PROJ.sections) for (const im of s.images || []) if (im.h > im.w) imgs.push(im);
+    return imgs.slice(0, 11);
+})();
+const allPieces = PROJ.sections.reduce((n, s) => n + (s.images?.length || 0), 0) + 1;
 
+/* ───────────────────────── DOM ───────────────────────── */
 const stage = document.getElementById('stage');
+const wheelHTML = (cls, extra = '') => `
+<section class="sc ${cls}">${extra}<div class="cards"></div>
+    <div class="wt"><canvas></canvas><div class="no"></div><div class="nm"></div><div class="sb"></div></div>
+    <div class="wn"></div><div class="wf"></div><div class="wf2"></div></section>`;
+
 stage.innerHTML = `
-<div class="bg"></div>
-<canvas class="snow"></canvas>
-<section class="sc s1">${[...'MZZ'].map((c) => `<span class="big">${c}</span>`).join('')}</section>
-<section class="sc s2">
-    <div class="lines"></div>
-    <div class="mono year2">( 2026 ) &nbsp; DISEÑADOR GRÁFICO &nbsp; ( ARG )</div>
-    <div class="tape"><div></div></div>
+<canvas class="field"></canvas>
+<section class="sc a">
+    <div class="ghost">MZ</div>
+    <p class="p1">Soy Máximo, diseñador gráfico independiente de Argentina. Trabajo en identidad visual, dirección de arte y sistemas gráficos para marcas que tienen algo para decir y necesitan mostrarlo.</p>
+    <canvas class="hero"></canvas>
+    <div class="ht ht1">(MZZ.DSG)</div><div class="ht ht2">(2026)</div>
+    <p class="p2">Acá están mis trabajos y, aparte, una biblioteca de lo que leo, escucho y miro: las referencias que me acompañan cuando diseño.</p>
+    <ul class="menu"><li><sup>(15)</sup>Trabajos</li><li><sup>(18)</sup>Biblioteca</li><li><sup>(+)</sup>Sobre mí</li></ul>
+    <div class="cta">Entrar a Trabajos ↗<i></i></div>
 </section>
-<section class="sc s3"><div class="year big">2026</div><canvas class="horse" width="640" height="450"></canvas><div class="cap">Diseño en movimiento</div></section>
-<section class="sc s4">${COVERS.map(([s, n, no]) => `
-    <div class="cv" data-s="${s}"><div class="z"><img alt=""><canvas></canvas></div>
-        <div class="no" style="color:${accentOf(s)}">${no} / 15</div>
-        <div class="nm big">${n.replace(' ', '<br>')}</div><div class="bar" style="background:${accentOf(s)}"></div></div>`).join('')}
-</section>
-<section class="sc s5">
-    <div class="pn pn-n"><span class="lb">06 — Nyro</span><svg viewBox="0 0 300 300">${nParts().map((d) => `<path class="np" d="${d}"/>`).join('')}</svg><span class="lc">Identidad de marca</span></div>
-    <div class="pn pn-c"><span class="lb">07 — Contigiani Briñón</span>${logoSVG({ layout: 'icon' })}<span class="lc">Bienes raíces</span></div>
-    <div class="pn pn-b"><span class="lb">08 — Blue Marketing</span>
-        <svg class="waves" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMax slice"><path class="wa" d="${WAVE_A}" fill="#2b46ff"/><path class="wb" d="${WAVE_B}" fill="#4f6bff"/></svg>
-        ${blueSVG({ layout: 'icon' })}<span class="lc">Marketing digital</span></div>
-</section>
-<section class="sc s6"><div class="ring">${COVERS.map(() => '<div class="card"></div>').join('')}</div>${WORDS.map((w) => `<div class="word big">${w}</div>`).join('')}</section>
-<section class="sc s7"><div class="ya">YA CASI</div><div class="count">000</div><canvas class="bar"></canvas></section>
-<section class="sc s8"><canvas class="dt"></canvas><div class="title">(MZZ.DSG)</div><div class="online"><span></span><i></i></div></section>
+${wheelHTML('w')}
+<section class="sc p"><div class="pi"><div class="no"></div><div class="nm"></div><p class="ds"></p><div class="rows"></div></div><div class="pg"></div></section>
+${wheelHTML('l', '<div class="filters"><b>Todos<sup>18</sup></b><span>Libros</span><span>Álbumes</span><span>Videos</span><span>Galerías</span></div>')}
+<section class="sc e"><canvas class="dt"></canvas><div class="title">(MZZ.DSG)</div><div class="online"><span></span><i></i></div></section>
+<div class="lbx"><div class="im"></div><div class="im"></div><div class="ct"></div><div class="cl">Cerrar ✕</div></div>
 <canvas class="wipe"></canvas>
-<div class="hud"><span class="tl">MZZ.DSG®</span><span class="tr">00:00</span><span class="bl">Portfolio — 2026</span><span class="br">Córdoba, Argentina</span></div>
-<div class="flash"></div>`;
+<canvas class="horse" width="640" height="450"></canvas>
+<header class="nav">
+    <a class="logo">Máximo<br>Mazzuchin<sup>®</sup></a>
+    <nav class="links"><a>Index</a><a>Trabajos<sup>15</sup></a><a>Biblioteca<sup>18</sup></a><a>Sobre mí</a></nav>
+    <div class="tools"><span class="menu">Menú</span><svg class="spk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span>Oscuro</span></div>
+</header>
+<div class="cur"><canvas width="26" height="26"></canvas><span></span></div>`;
 
 const $ = (s, r = stage) => r.querySelector(s);
 const $$ = (s, r = stage) => [...r.querySelectorAll(s)];
-const sc = { s1: $('.s1'), s2: $('.s2'), s3: $('.s3'), s4: $('.s4'), s5: $('.s5'), s6: $('.s6'), s7: $('.s7'), s8: $('.s8') };
+const S = { a: $('.a'), w: $('.w'), p: $('.p'), l: $('.l'), e: $('.e') };
 
-/** Ancho de un texto a 100 px con la clase `cls` (para ajustar el cuerpo a un ancho dado). */
-function widthAt100(text, cls, extra = '') {
+function widthAt100(text, cls = 'big', extra = '') {
     const s = document.createElement('span');
     s.className = cls;
     s.style.cssText = `position:absolute;visibility:hidden;font-size:100px;${extra}`;
@@ -98,340 +101,296 @@ function widthAt100(text, cls, extra = '') {
     s.remove();
     return w;
 }
-const fitSize = (text, width, cls = 'big') => (100 * width) / widthAt100(text, cls);
-
-function letters(el, text) {
-    el.innerHTML = [...text].map((c) => `<span class="ch">${c === ' ' ? '&nbsp;' : c}</span>`).join('');
-    return $$('.ch', el);
-}
+const fitSize = (text, width) => (100 * width) / widthAt100(text);
 
 /* ───────────────────────── canvas ───────────────────────── */
-const CELL = 8;
-const snow = $('.snow');
-snow.width = Math.ceil(W / CELL); snow.height = Math.ceil(H / CELL);
-const snowCtx = snow.getContext('2d');
-const snowImg = snowCtx.createImageData(snow.width, snow.height);
-
-function drawSnow(t, dens, rgb) {
-    const d = snowImg.data;
-    const sh = Math.floor(t * 15);
-    for (let y = 0; y < snow.height; y++) {
-        for (let x = 0; x < snow.width; x++) {
-            const local = dens * (0.65 + 0.35 * Math.sin(x * 0.13 + y * 0.09 + t * 2.2));
-            const on = local > bayer(x + sh, y + sh * 2);
-            const i = (y * snow.width + x) * 4;
-            d[i] = rgb; d[i + 1] = rgb; d[i + 2] = rgb; d[i + 3] = on ? 255 : 0;
-        }
-    }
-    snowCtx.putImageData(snowImg, 0, 0);
-}
-
-const wipe = $('.wipe');
-wipe.width = Math.ceil(W / CELL); wipe.height = Math.ceil(H / CELL);
-const wipeCtx = wipe.getContext('2d');
-const wipeImg = wipeCtx.createImageData(wipe.width, wipe.height);
-// Barridos Bayer: [t0, t1, de, a, color]
-const WIPES = [
-    [2.34, 2.5, 0, 1, 255], [2.5, 2.8, 1, 0, 255],
-    [4.55, 5.0, 0, 1, 0], [5.0, 5.35, 1, 0, 0],
-    [17.3, 17.45, 0, 1, 0], [17.45, 17.6, 1, 0, 0],
-];
+const field = $('.field');
+const wipe = $('.wipe'); const WC = 8;
+wipe.width = Math.ceil(W / WC); wipe.height = Math.ceil(H / WC);
+const wipeCtx = wipe.getContext('2d'); const wipeImg = wipeCtx.createImageData(wipe.width, wipe.height);
 function drawWipe(t) {
-    const w = WIPES.find(([a, b]) => t >= a && t < b);
+    const amt = t < CORT.cover[0] ? 0 : t < CORT.hold[0] ? (t - CORT.cover[0]) / (CORT.cover[1] - CORT.cover[0])
+        : t < CORT.hold[1] ? 1 : t < CORT.open[1] ? 1 - (t - CORT.open[0]) / (CORT.open[1] - CORT.open[0]) : 0;
     const d = wipeImg.data;
-    if (!w) { if (wipe.dataset.on) { d.fill(0); wipeCtx.putImageData(wipeImg, 0, 0); delete wipe.dataset.on; } return; }
-    wipe.dataset.on = '1';
-    const amt = lerp(w[2], w[3], (t - w[0]) / (w[1] - w[0]));
-    for (let y = 0; y < wipe.height; y++) {
-        for (let x = 0; x < wipe.width; x++) {
-            const v = amt * 1.7 - (x / wipe.width) * 0.7;
-            const i = (y * wipe.width + x) * 4;
-            const on = v > bayer(x, y);
-            d[i] = w[4]; d[i + 1] = w[4]; d[i + 2] = w[4]; d[i + 3] = on ? 255 : 0;
-        }
+    if (amt <= 0 || amt >= 1.0001) { const full = amt > 0; for (let i = 0; i < d.length; i += 4) { d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = full ? 255 : 0; } wipeCtx.putImageData(wipeImg, 0, 0); return; }
+    for (let y = 0; y < wipe.height; y++) for (let x = 0; x < wipe.width; x++) {
+        const i = (y * wipe.width + x) * 4;
+        d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = amt * 1.7 - (x / wipe.width) * 0.7 > bayer(x, y) ? 255 : 0;
     }
     wipeCtx.putImageData(wipeImg, 0, 0);
 }
-
-/* ───────────────────────── escenas ───────────────────────── */
-const master = gsap.timeline({ paused: true });
-
-// 1 · M Z Z
-const s1l = $$('.big', sc.s1);
-s1l.forEach((l, k) => {
-    gsap.set(l, { opacity: 0 });
-    master.fromTo(l, { scale: 1.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.14, ease: 'power4.out' }, k * B);
-});
-// 2 · NUEVO PORTFOLIO
-// Vertical: NUEVO / PORT / FOLIO, cada línea a todo el ancho. Horizontal: NUEVO / PORTFOLIO.
-const LINES = HZ ? [['NUEVO', 0.62], ['PORTFOLIO', 0.9]] : [['NUEVO', 0.94], ['PORT', 0.94], ['FOLIO', 0.94]];
-const linesEl = $('.lines');
-const lineChars = LINES.map(([txt, k], i) => {
-    const el = document.createElement('div');
-    el.className = 'big ln';
-    el.style.fontSize = `${fitSize(txt, W * k)}px`;
-    linesEl.append(el);
-    return letters(el, txt);
-});
-lineChars.forEach((cs, li) => {
-    const t0 = 2.5 + li * B / (HZ ? 1 : 1);
-    cs.forEach((c, i) => {
-        if (li % 2 === 0) master.fromTo(c, { yPercent: 115, fontWeight: 500 }, { yPercent: 0, fontWeight: 800, duration: 0.2, ease: 'power4.out' }, t0 + i * 0.06);
-        else master.fromTo(c, { xPercent: 130, opacity: 0, fontWeight: 500 }, { xPercent: 0, opacity: 1, fontWeight: 800, duration: 0.16, ease: 'power3.out' }, t0 + i * 0.045);
-    });
-});
-const outlined = lineChars[1];
-outlined.forEach((c) => { c.style.webkitTextStroke = '6px #000'; c.style.color = 'transparent'; });
-master.to(outlined, { color: '#000', duration: 0.04 }, 4.0);
-lineChars.forEach((cs, li) => {
-    master.to(cs, { fontWeight: 540, duration: 0.1, yoyo: true, repeat: 1, stagger: 0.025 }, 4.0 + (li % 2) * 0.06);
-    master.to(cs, { fontWeight: 540, duration: 0.1, yoyo: true, repeat: 1, stagger: 0.025 }, 4.4 + (li % 2) * 0.06);
-});
-const tapeEl = $('.tape div');
-tapeEl.textContent = TAPE.repeat(4);
-// 3 · caballo (sprite 5×2, alfa = brillo; se pinta en 1 bit con Bayer)
-const yearEl = $('.year', sc.s3); yearEl.style.fontSize = ''; // el tamaño lo da el css
-const hCv = $('.horse'); const hCtx = hCv.getContext('2d');
+// Caballo de la cortina (sprite 5×2, alfa = brillo, en 1 bit con Bayer), centrado: 20 % del ancho en escritorio, 50 % en celular
+const hCv = $('.horse'); const hCtx = hCv.getContext('2d'); const hImg = hCtx.createImageData(640, 450);
 const hOff = document.createElement('canvas'); hOff.width = 640; hOff.height = 450;
 const hOffCtx = hOff.getContext('2d', { willReadFrequently: true });
-const hImg = hCtx.createImageData(640, 450);
-const SP = Array.from({ length: 18 }, (_, i) => ({ y: 0.08 + hash(i, 1) * 0.84, w: 220 + hash(i, 2) * 560, v: 2200 + hash(i, 3) * 2400, o: hash(i, 4) * (W + 800), h: 6 + Math.floor(hash(i, 5) * 3) * 4 }));
-SP.forEach((s) => { s.el = document.createElement('div'); s.el.className = 'sp'; s.el.style.top = `${s.y * H}px`; s.el.style.width = `${s.w}px`; s.el.style.height = `${s.h}px`; sc.s3.append(s.el); });
-// 4 · portadas
-const cvEls = $$('.cv', sc.s4);
-COVERS.forEach(([slug, name], i) => {
-    const longest = name.split(' ').reduce((a, b) => (b.length > a.length ? b : a), '');
-    const size = Math.min(HZ ? 250 : 220, fitSize(longest, W - 88));
-    $('.nm', cvEls[i]).style.fontSize = `${size}px`;
-});
-const LW = Math.ceil(W / 6); const LH = Math.ceil(H / 6);
-// 5 · logos
-const panels = $$('.pn', sc.s5);
-panels.forEach((p, i) => {
-    if (HZ) Object.assign(p.style, { left: `${(i * W) / 3}px`, top: '0', width: `${W / 3 + 1}px`, height: `${H}px` });
-    else Object.assign(p.style, { left: '0', top: `${(i * H) / 3}px`, width: `${W}px`, height: `${H / 3 + 1}px` });
-    gsap.set(p, { clipPath: 'inset(0 100% 0 0)' });
-    master.to(p, { clipPath: 'inset(0 0% 0 0)', duration: 0.18, ease: 'power4.out' }, 10 + i * (B / 2));
-});
-master.fromTo($$('.np'), { scale: 0, transformBox: 'fill-box', transformOrigin: '50% 50%' }, { scale: 1, duration: 0.22, ease: 'back.out(2.2)', stagger: 0.09 }, 10.2);
-master.to($$('.cb-p'), { strokeDashoffset: 0, duration: 0.5, ease: 'power2.inOut', stagger: 0.05 }, 10.5);
-master.to($$('.cb-p'), { fillOpacity: 1, duration: 0.25 }, 11.15);
-master.fromTo($('.pn-b svg.bm-logo'), { clipPath: 'inset(100% 0 0 0)' }, { clipPath: 'inset(0% 0 0 0)', duration: 0.45, ease: 'power3.out' }, 10.8);
-// 6 · rueda
-const CW = HZ ? 560 : 640; const CH = HZ ? 740 : 850;
-const R = Math.round(CW / 2 / Math.tan(Math.PI / 8)) + 40;
-const cards = $$('.card', sc.s6);
-cards.forEach((c) => { Object.assign(c.style, { width: `${CW}px`, height: `${CH}px`, left: `${-CW / 2}px`, top: `${-CH / 2}px` }); });
-const ring = $('.ring');
-const wordEls = $$('.word', sc.s6);
-wordEls.forEach((w, i) => { w.style.fontSize = `${fitSize(WORDS[i], W * (HZ ? 0.8 : 0.96))}px`; });
-// 7 · subida
-const countEl = $('.count'); const yaEl = $('.ya');
-const barCv = $('.s7 .bar'); const BW = Math.ceil(W / 6); const BH = 22;
-barCv.width = BW; barCv.height = BH;
-const barCtx = barCv.getContext('2d');
-// 8 · cierre
-const titleEl = $('.title'); const online = $('.online span'); const cursor = $('.online i');
-const titleSize = fitSize('(MZZ.DSG)', W * (HZ ? 0.74 : 0.93));
-titleEl.style.fontSize = `${titleSize}px`;
-const dt = $('.dt'); const DC = 4;
-dt.width = Math.ceil(W / DC); dt.height = Math.ceil(H / DC);
-const dtCtx = dt.getContext('2d');
-const dtImg = dtCtx.createImageData(dt.width, dt.height);
-let dtMask = null;
-
-/* ───────────────────────── destellos / sonido ───────────────────────── */
-const f2 = 2 / FPS;
-const strobe1 = []; for (let t = 1.875; t < 2.5; t += 0.0625) strobe1.push(t);
-const strobe7 = []; { let t = 15; let step = B / 2; while (t < 17.4) { strobe7.push(t); step = Math.max(0.045, step * 0.84); t += step; } }
-const FLASH = [
-    [0, f2], [B, B + f2], [2 * B, 2 * B + f2],
-    ...strobe1.filter((_, i) => i % 2 === 0).map((a) => [a, a + 0.0312]),
-    [3.125, 3.125 + f2], [3.75, 3.75 + f2], [4.375, 4.375 + f2],
-    [12.3, 12.3 + f2], [12.4, 12.4 + f2],
-    ...strobe7.filter((_, i) => i % 2 === 0).map((a, k) => [a, strobe7[2 * k + 1] ?? a + 0.04]),
-    [18.5, 18.5 + 3 / FPS], [19.375, 19.375 + 3 / FPS],
-];
-
-// Lista de sonidos: name, t, p (tono), arg (solo gallopRun)
-export const AUDIO = [];
-const au = (name, t, p = 1, arg) => AUDIO.push({ name, t, p, arg });
-for (let b = 0; b * B < 17.4; b++) { const t = b * B; if (t >= 5.0 && t < 7.5) continue; if (t >= 15) continue; au('kick', t); au('tick', t + E, 0.75); }
-for (let k = 0; k < 3; k++) au('click', k * B, 1 + k * 0.1);
-for (let i = 0; i < 5; i++) au('tick', 2.5 + i * 0.06, 0.8 + i * 0.12);
-au('open', 3.125, 0.9); au('open', 3.75, 1.1); au('open', 4.375, 1.3);
-au('wipeIn', 4.55); au('wipeOut', 5.0);
-au('gallopRun', 5.0, 1, 2.5);
-au('open', 7.5, 0.7);
-for (let i = 0; i < 8; i++) { au('tick', 7.5 + i * E, 1 + i * 0.07); au('click', 7.5 + i * E, 0.9 + i * 0.05); }
-[0, 1, 2].forEach((i) => au('open', 10 + i * E, 0.9 + i * 0.25));
-for (let i = 0; i < 4; i++) au('click', 12.5 + i * B, 1 + i * 0.12);
-{ // la rueda gira cada vez más rápido
-    let t = 12.5; let step = 0.3;
-    while (t < 15) { au('tick', t, 0.9 + (t - 12.5) * 0.25); t += step; step = Math.max(0.05, step * 0.9); }
+const HW = HZ ? 384 : 540;
+Object.assign(hCv.style, { left: `${(W - HW) / 2}px`, top: `${(H - (HW * 450) / 640) / 2}px`, width: `${HW}px`, height: `${(HW * 450) / 640}px`, zIndex: 15 });
+let HORSE_IMG;
+function drawHorse(t) {
+    const [a, b] = CORT.hold;
+    if (t < a || t >= b) { hCv.style.display = 'none'; return; }
+    hCv.style.display = 'block';
+    const reveal = Math.min(clamp((t - a) / 0.22), clamp((b - 0.1 - t) / 0.2) + (t < b - 0.3 ? 1 : 0));
+    const fi = Math.floor((t - a) * 16) % 10;
+    hOffCtx.clearRect(0, 0, 640, 450);
+    hOffCtx.drawImage(HORSE_IMG, (fi % 5) * 640, Math.floor(fi / 5) * 450, 640, 450, 0, 0, 640, 450);
+    const src = hOffCtx.getImageData(0, 0, 640, 450).data; const o = hImg.data;
+    for (let y = 0; y < 450; y++) for (let x = 0; x < 640; x++) {
+        const i = (y * 640 + x) * 4;
+        o[i] = o[i + 1] = o[i + 2] = 244; o[i + 3] = (src[i + 3] / 255) * Math.min(1, reveal) > bayer(x, y) ? 255 : 0;
+    }
+    hCtx.putImageData(hImg, 0, 0);
 }
-for (let i = 0; i < strobe7.length; i += 1) au(i % 2 ? 'hover' : 'kick', strobe7[i], 1 + i * 0.02);
-au('wipeIn', 17.2);
-au('wipeOut', 17.45);
-au('open', 18.5, 0.8);
-au('kick', 19.375); au('open', 19.375, 0.6);
 
-/* ───────────────────────── render ───────────────────────── */
-const COVER_IMG = {};
-const covLum = {};
-
-function drawCoverOverlay(cv, slug, local) {
-    const ov = $('canvas', cv);
-    const p = clamp(local / 0.2); // 0..1 en los primeros 6 cuadros
-    if (p >= 1) { if (ov.dataset.clear !== '1') { ov.getContext('2d').clearRect(0, 0, ov.width, ov.height); ov.dataset.clear = '1'; } return; }
-    ov.dataset.clear = '0';
-    const lum = covLum[slug];
-    const ctx = ov.getContext('2d');
-    const img = ctx.createImageData(LW, LH);
-    for (let y = 0; y < LH; y++) {
-        for (let x = 0; x < LW; x++) {
-            const b = bayer(x, y);
-            const i = (y * LW + x) * 4;
-            if (b < p) { img.data[i + 3] = 0; continue; } // ya se ve en color
-            const on = lum[y * LW + x] > b;
-            const v = on ? 255 : 0;
-            img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 255;
-        }
+// Texto en dither: la máscara sale de elementos del DOM (misma fuente, tamaño y posición), se muestra según p (0..1)
+const DC = 4;
+function textMask(els, cw, ch) {
+    const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+    const c = off.getContext('2d', { willReadFrequently: true });
+    const sr = stage.getBoundingClientRect();
+    c.fillStyle = '#fff'; c.textAlign = 'center';
+    for (const el of els) {
+        const cs = getComputedStyle(el); const fs = parseFloat(cs.fontSize);
+        const r = el.getBoundingClientRect();
+        const probe = document.createElement('span'); probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+        el.append(probe);
+        const base = probe.getBoundingClientRect().top - sr.top; probe.remove();
+        c.font = `800 ${fs / DC}px "Inter Tight"`;
+        c.letterSpacing = `${(-0.045 * fs) / DC}px`;
+        c.fillText(el.textContent, (r.left - sr.left + r.width / 2) / DC, base / DC);
+    }
+    const px = c.getImageData(0, 0, cw, ch).data;
+    const m = new Uint8Array(cw * ch);
+    for (let i = 0; i < m.length; i++) m[i] = px[i * 4 + 3] > 120 ? 1 : 0;
+    return m;
+}
+function paintMask(cv, ctx, img, mask, p) {
+    const d = img.data;
+    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) {
+        const i = (y * cv.width + x) * 4;
+        d[i] = d[i + 1] = d[i + 2] = 244; d[i + 3] = mask[y * cv.width + x] && p > bayer(x, y) ? 255 : 0;
     }
     ctx.putImageData(img, 0, 0);
 }
+const hero = $('.hero'); hero.width = Math.ceil(W / DC); hero.height = Math.ceil(H / DC);
+const heroCtx = hero.getContext('2d'); const heroImg = heroCtx.createImageData(hero.width, hero.height);
+const dt = $('.dt'); dt.width = Math.ceil(W / DC); dt.height = Math.ceil(H / DC);
+const dtCtx = dt.getContext('2d'); const dtImg = dtCtx.createImageData(dt.width, dt.height);
+let heroMask; let endMask;
 
+// Cursor del sitio: disco de puntos en dither
+const curEl = $('.cur'); const curLabel = $('span', curEl);
+{
+    const c = $('canvas', curEl).getContext('2d'); c.fillStyle = '#f4f4ef';
+    for (let y = 0; y < 26; y++) for (let x = 0; x < 26; x++) {
+        const r = Math.hypot(x - 12.5, y - 12.5) / 12.5;
+        if (r < 1 && (1 - r) * 1.5 + 0.12 > bayer(x * 2, y * 2)) c.fillRect(x, y, 1, 1);
+    }
+}
+
+/* ───────────────────────── rueda ───────────────────────── */
+// Misma geometría que src/gl/wheel.js: las cartas siguen el arco de un círculo grande y se inclinan con su ángulo.
+const geo = HZ
+    ? { cw: 400, ch: 500, R: W * 0.9, step: 0.33, cy: H * 0.655 }
+    : { cw: Math.min(W * 0.58, H * 0.36), ch: Math.min(W * 0.58, H * 0.36) * 1.25, R: W * 1.1, step: 0.4, cy: H * 0.55 };
+
+function makeWheel(root, items, w, { square = false, count }) {
+    const cards = $('.cards', root); const els = items.map((it) => {
+        const e = document.createElement('div'); e.className = 'wc';
+        e.style.backgroundImage = `url(${it.img})`;
+        e.style.width = `${geo.cw}px`; e.style.height = `${square ? geo.cw : geo.ch}px`;
+        cards.append(e); return e;
+    });
+    const ch = square ? geo.cw : geo.ch;
+    const wt = $('.wt', root); const bar = $('canvas', wt); const no = $('.no', wt); const nm = $('.nm', wt); const sb = $('.sb', wt);
+    const wn = $('.wn', root); const wf = $('.wf', root); const wf2 = $('.wf2', root);
+    const cap = HZ ? 110 : 150;
+    const sizes = items.map((it) => Math.min(cap, fitSize(it.name, W - 88 - (HZ ? 400 : 0))));
+    wf2.innerHTML = `${w.cta || 'Ver proyecto ↗'}<i></i>`;
+    let shown = -1;
+    const pos = (t) => { const k = clamp((t - w.t0) / w.dur, 0, w.steps); const f = frac(k); return k >= w.steps ? [w.steps, 1, k] : [Math.floor(k) + ease(clamp(f / 0.6)), f, k]; };
+    return {
+        pos,
+        update(t) {
+            const [p, f, k] = pos(t);
+            els.forEach((e, i) => {
+                const d = i - p; const ad = Math.abs(d);
+                if (ad > 3) { e.style.display = 'none'; return; }
+                const phi = d * geo.step;
+                const x = W / 2 + geo.R * Math.sin(phi); const y = geo.cy + geo.R * (1 - Math.cos(phi));
+                e.style.display = 'block';
+                e.style.opacity = 1 - clamp(ad - 2);
+                e.style.transform = `translate(${x - geo.cw / 2}px, ${y - ch / 2}px) rotate(${phi}rad)`;
+            });
+            const idx = clamp(Math.round(p), 0, items.length - 1); const it = items[idx];
+            if (idx !== shown) {
+                shown = idx;
+                no.textContent = pad(it.no); no.style.color = it.accent;
+                nm.textContent = it.name; nm.style.fontSize = `${sizes[idx]}px`;
+                sb.textContent = it.sub; wn.innerHTML = `${pad(it.no)} <b>/ ${pad(count)}</b>`;
+                wf.textContent = it.sub;
+            }
+            const moving = k < w.steps && k > 0;
+            const o = moving ? Math.abs(Math.cos(Math.PI * clamp(f / 0.6))) : 1;
+            wt.style.opacity = o; wt.style.transform = `translateY(${(1 - o) * 16}px)`;
+            ditherBar(bar, it.accent, 3, t);
+        },
+    };
+}
+const wheelP = makeWheel(S.w, PW.map((p) => ({ img: p.cover.src, name: p.title, sub: p.type, accent: accentOf(p.slug), no: Number(p.index) })), WHEEL, { count: TOTAL });
+const libItems = LIB.map((e, i) => ({ img: e.cover, name: e.title.length > 22 ? e.author : e.title, sub: `${kinds[e.kind].singular}${e.year ? ` / ${e.year}` : ''}`, accent: kinds[e.kind].accent, no: i + 1 }));
+const wheelL = makeWheel(S.l, libItems, { ...LIBW, cta: 'Ver ficha ↗' }, { square: true, count: 18 });
+
+/* ───────────────────────── proyecto ───────────────────────── */
+const pg = $('.pg'); const pi = $('.pi');
+const mkDiv = (im, cls = '') => { const d = document.createElement('div'); d.className = cls; d.style.backgroundImage = `url(${im.src})`; d.style.aspectRatio = `${im.w}/${im.h}`; return d; };
+let col1; let col2; let firstGrid;
+{
+    $('.no', pi).textContent = `${pad(Number(PROJ.index))} / ${pad(TOTAL)}`;
+    $('.no', pi).style.color = accentOf(PROJ.slug);
+    const nm = $('.nm', pi); nm.textContent = PROJ.title;
+    nm.style.fontSize = `${Math.min(HZ ? 120 : 220, fitSize(PROJ.title, HZ ? 520 : W - 88))}px`;
+    $('.ds', pi).textContent = PROJ.description;
+    $('.rows', pi).innerHTML = [['Proyecto', PROJ.index], ['Tipo', PROJ.type], ['Piezas', String(allPieces)]].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+    const cov = mkDiv(gallery[0], 'cov'); cov.style.height = ''; pg.append(cov);
+    const grid = document.createElement('div'); grid.className = 'grid';
+    col1 = document.createElement('div'); col1.className = 'col'; col2 = document.createElement('div'); col2.className = 'col';
+    gallery.slice(1).forEach((im, i) => (i % 2 ? col2 : col1).append(mkDiv(im)));
+    grid.append(col1, col2); pg.append(grid);
+    firstGrid = col1.firstElementChild;
+    if (!HZ) pg.style.top = '1150px'; else pg.style.top = '150px';
+}
+
+/* ───────────────────────── visor ───────────────────────── */
+const lbx = $('.lbx'); const lbIm = $$('.im', lbx); const lbCt = $('.ct', lbx);
+function lbBox(im) { const maxW = HZ ? 1500 : 1000; const maxH = HZ ? 880 : 1500; const s = Math.min(maxW / im.w, maxH / im.h); return [im.w * s, im.h * s]; }
+function setLb(el, im) { const [w, h] = lbBox(im); el.style.width = `${w}px`; el.style.height = `${h}px`; el.style.backgroundImage = `url(${im.src})`; }
+setLb(lbIm[0], gallery[1]); setLb(lbIm[1], gallery[2]);
+
+/* ───────────────────────── sonido ───────────────────────── */
+export const AUDIO = [];
+const au = (name, t, p = 1, arg) => AUDIO.push({ name, t, p, arg });
+au('hover', 4.55); au('click', T_CLICK.cta);
+au('wipeIn', CORT.cover[0] + 0.05); au('gallop', CORT.hold[0] + 0.05); au('wipeOut', CORT.open[0] - 0.05);
+{
+    const stepTimes = (w, soft) => { for (let s = 0; s < w.steps; s++) { const t = w.t0 + s * w.dur + 0.05; au('tick', t, 1 + (s % 2 ? 0.06 : -0.04)); au('tick', t + 0.22, 0.9, soft); } };
+    stepTimes(WHEEL); stepTimes(LIBW);
+}
+au('hover', 10.85); au('click', T_CLICK.ver); au('open', T_CLICK.ver + 0.08, 0.8);
+au('hover', 13.9); au('click', T_CLICK.img); au('lbOpen', T_LB[0] + 0.05); au('tick', 15.0);
+au('hover', 17.1);
+au('open', 18.45, 0.7); au('kick', 18.5);
+au('tick', 18.75, 1.2); for (let i = 1; i < 9; i++) au('hover', 18.75 + i * 0.07, 1 + i * 0.03);
+
+/* ───────────────────────── cursor ───────────────────────── */
+const C = {}; // posiciones medidas de los destinos
+function cursorState(t) {
+    const pt = (x, y) => ({ x, y });
+    let s = null;
+    if (t >= 3.0 && t < 5.4) {
+        const u = ease(clamp((t - 3.0) / 1.6)); const a = pt(W * 0.8, H * (HZ ? 0.4 : 0.34));
+        const cta = onCam(C.cta, cam(t, ...SCN.idx));
+        s = { ...pt(lerp(a.x, cta.x, u), lerp(a.y, cta.y, u)), label: '', press: clamp(1 - Math.abs(t - T_CLICK.cta - 0.07) / 0.12), a: clamp((t - 3.0) / 0.3) * clamp((5.4 - t) / 0.15) };
+    } else if (t >= 7.3 && t < 11.5) {
+        const drift = Math.sin((t - 7.3) * 1.5) * W * 0.07;
+        const hov = ease(clamp((t - 10.3) / 0.55));
+        const base = pt(W / 2 + drift, geo.cy - geo.ch * 0.1);
+        const ver = onCam(C.ver, cam(t, ...SCN.wheel));
+        s = { x: lerp(base.x, ver.x, hov), y: lerp(base.y, ver.y - 8, hov), label: hov > 0.6 ? '' : 'Arrastrar', press: clamp(1 - Math.abs(t - T_CLICK.ver - 0.07) / 0.12), a: clamp((t - 7.3) / 0.3) * clamp((11.5 - t) / 0.15) };
+    } else if (t >= 12.9 && t < 14.75) {
+        const r = firstGrid.getBoundingClientRect(); const sr = stage.getBoundingClientRect();
+        const tx = clamp(r.left - sr.left + r.width * 0.55, 80, W - 120); const ty = clamp(r.top - sr.top + r.height * 0.4, 260, H - 200);
+        const u = ease(clamp((t - 12.9) / 0.9));
+        s = { x: lerp(W * 0.7, tx, u), y: lerp(H * 0.62, ty, u), label: 'Ampliar', press: clamp(1 - Math.abs(t - T_CLICK.img - 0.07) / 0.12), a: clamp((t - 12.9) / 0.3) * clamp((14.75 - t) / 0.15) };
+    } else if (t >= 15.9 && t < 17.4) {
+        s = { x: W / 2 + Math.sin((t - 15.9) * 2) * W * 0.06, y: geo.cy, label: 'Arrastrar', press: 0, a: clamp((t - 15.9) / 0.3) * clamp((17.4 - t) / 0.2) };
+    }
+    return s;
+}
+
+/* ───────────────────────── render ───────────────────────── */
+const cam = (t, a, b) => 1 + 0.045 * ease(clamp((t - a) / (b - a)));
+const onCam = (pt, s) => ({ x: W / 2 + (pt.x - W / 2) * s, y: H / 2 + (pt.y - H / 2) * s });
+let typed = 0;
 function update(t) {
-    const show = (el, [a, b]) => { el.style.display = t >= a && t < b ? 'block' : 'none'; };
-    sc.s1.style.display = t >= T.s1[0] && t < T.s1[1] ? 'flex' : 'none';
-    show(sc.s3, T.s3); show(sc.s4, T.s4);
-    show(sc.s6, T.s6); show(sc.s7, T.s7);
-    sc.s2.style.display = t >= T.s2[0] && t < T.s2[1] ? 'flex' : 'none';
-    sc.s5.style.display = t >= T.s5[0] && t < T.s5[1] ? 'block' : 'none';
-    sc.s8.style.display = t >= T.s8[0] ? 'flex' : 'none';
+    // fondo: el campo de dither del home, suave
+    ditherField(field, '#2a2a28', t, 8, 0.14 * clamp(t / 1.2));
 
-    // fondo + nieve según la escena
-    let bg = '#000'; let col = 255; let dens = 0.05;
-    if (t < 2.5) dens = 0.05 + 0.4 * pulse(t) + 0.12 * (t / 2.5);
-    else if (t < 4.55) { bg = '#fff'; col = 0; dens = 0.06 + 0.3 * pulse(t); }
-    else if (t < 5.0) { bg = '#fff'; col = 0; dens = 0.3; }
-    else if (t < 7.5) dens = 0.07 + 0.18 * pulse(t);
-    else if (t < 15) dens = 0.05 + 0.08 * pulse(t);
-    else if (t < 17.4) dens = 0.08 + 0.12 * pulse(t, B / 2);
-    else dens = lerp(0.35, 0.03, ease(clamp((t - 17.45) / 1.4)));
-    stage.style.backgroundColor = bg;
-    $('.bg').style.backgroundColor = bg;
-    drawSnow(t, dens, col);
+    // escenas
+    const vis = (el, o, disp = 'block') => { el.style.display = o > 0.001 ? disp : 'none'; el.style.opacity = o; };
+    vis(S.a, op(t, SCN.idx, 0.5, 0.05)); vis(S.w, op(t, SCN.wheel, 0.05, 0.45)); vis(S.p, op(t, SCN.proj, 0.4, 0.45));
+    vis(S.l, op(t, SCN.lib, 0.4, 0.4)); vis(S.e, op(t, SCN.end, 0.5, 0.01));
+    // empuje de cámara muy lento sobre cada escena
+    [[S.a, SCN.idx], [S.w, SCN.wheel], [S.p, SCN.proj], [S.l, SCN.lib]].forEach(([el, [a, b]]) => { el.style.transform = `scale(${cam(t, a, b)})`; });
+    const navAlpha = clamp((t - 0.5) / 0.5);
+    $('.nav').style.opacity = navAlpha;
+    $$('.nav .links a').forEach((a, i) => {
+        const on = i === 0 ? op(t, [0.8, 5.5], 0.3, 0.3) : i === 1 ? op(t, [6.6, 15.5], 0.3, 0.3) : i === 2 ? op(t, [15.4, 17.6], 0.3, 0.3) : 0;
+        a.style.setProperty('--on', on);
+    });
 
-    // HUD
-    const fr = Math.floor(t * FPS);
-    $('.hud .tr').textContent = `${String(Math.floor(fr / FPS)).padStart(2, '0')}:${String(fr % FPS).padStart(2, '0')}`;
+    // A · Index
+    if (S.a.style.display !== 'none') {
+        $('.ghost', S.a).style.transform = `translateX(${(HZ ? -300 : -420) - t * 14}px)`;
+        const words = (el, t0, per) => { // el con palabras que aparecen una a una
+            if (!el.dataset.w) { el.dataset.w = '1'; el.innerHTML = el.textContent.split(' ').map((w) => `<span style="opacity:0">${w}</span>`).join(' '); }
+            [...el.children].forEach((s, i) => { s.style.opacity = clamp((t - t0 - i * per) / 0.18); });
+        };
+        words($('.p1', S.a), 1.4, 0.06); words($('.p2', S.a), 2.6, 0.06);
+        $$('.menu li', S.a).forEach((li, i) => { li.style.opacity = clamp((t - 3.4 - i * 0.18) / 0.3); li.style.transform = `translateY(${(1 - clamp((t - 3.4 - i * 0.18) / 0.3)) * 12}px)`; });
+        $('.cta', S.a).style.opacity = clamp((t - 3.9) / 0.4);
+        $('.cta i', S.a).style.transform = `scaleX(${ease(clamp((t - 4.5) / 0.4))})`;
+        const p = 0.9 * ease(clamp((t - 1.0) / 1.7));
+        paintMask(hero, heroCtx, heroImg, heroMask, p);
+    }
+    // cortina con caballo
+    drawWipe(t); drawHorse(t);
 
-    // 2 · cinta
-    tapeEl.style.transform = `translateX(${-((t - 2.5) * 560) % 1400}px)`;
-    // 3 · caballo + líneas de velocidad
-    if (t >= T.s3[0] && t < T.s3[1]) {
-        const u = (t - 5) / 2.5;
-        const hw = HZ ? 1260 : 1500;
-        const x = lerp(-hw * 0.95, W - hw * 0.05, lerp(u, ease(u), 0.45));
-        hCv.style.left = `${x}px`;
-        const fi = Math.floor((t - 5) * 16) % 10;
-        hOffCtx.clearRect(0, 0, 640, 450);
-        hOffCtx.drawImage(HORSE_IMG, (fi % 5) * 640, Math.floor(fi / 5) * 450, 640, 450, 0, 0, 640, 450);
-        const src = hOffCtx.getImageData(0, 0, 640, 450).data;
-        const o = hImg.data;
-        for (let y = 0; y < 450; y++) for (let xx = 0; xx < 640; xx++) {
-            const i = (y * 640 + xx) * 4;
-            const on = src[i + 3] / 255 > bayer(xx, y);
-            o[i] = 255; o[i + 1] = 255; o[i + 2] = 255; o[i + 3] = on ? 255 : 0;
-        }
-        hCtx.putImageData(hImg, 0, 0);
-        yearEl.style.transform = `translateX(${lerp(60, -60, u)}px)`;
-        SP.forEach((s) => { s.el.style.transform = `translateX(${((s.o - (t - 5) * s.v) % (W + s.w + 600) + (W + s.w + 600)) % (W + s.w + 600) - s.w}px)`; });
+    // Trabajos
+    if (S.w.style.display !== 'none') wheelP.update(t);
+    // Proyecto: la columna izquierda queda fija en escritorio; en celular la info sube con el scroll
+    if (S.p.style.display !== 'none') {
+        const D = HZ ? 1350 : 1900;
+        const y = -D * ease(clamp((t - SCROLL[0]) / (SCROLL[1] - SCROLL[0])));
+        pg.style.transform = `translateY(${y}px)`;
+        pi.style.transform = HZ ? 'none' : `translateY(${y}px)`;
+        col2.style.transform = `translateY(${y * 0.1}px)`;
     }
-    // 4 · portadas (una por corchea)
-    if (t >= T.s4[0] && t < T.s4[1]) {
-        const k = clamp(Math.floor((t - 7.5) / E), 0, 7);
-        const local = t - 7.5 - k * E;
-        cvEls.forEach((cv, i) => {
-            cv.style.display = i === k ? 'block' : 'none';
-            if (i !== k) return;
-            $('.z', cv).style.transform = `scale(${lerp(1.14, 1, ease(clamp(local / E)))})`;
-            const nm = $('.nm', cv);
-            nm.style.transform = `translateY(${lerp(60, 0, ease(clamp(local / 0.12)))}px)`;
-            nm.style.opacity = clamp(local / 0.06);
-            drawCoverOverlay(cv, cv.dataset.s, local);
-        });
+    // Visor
+    const lbo = clamp((t - T_LB[0]) / 0.3) * clamp((T_LB[1] - t) / 0.35);
+    lbx.style.display = lbo > 0.001 ? 'block' : 'none'; lbx.style.opacity = lbo;
+    if (lbo > 0) {
+        const sw = ease(clamp((t - 15.0) / 0.3));
+        lbIm[0].style.opacity = 1 - sw; lbIm[1].style.opacity = sw;
+        const sc = lerp(0.95, 1, easeOut(clamp((t - T_LB[0]) / 0.4)));
+        lbIm.forEach((e) => { e.style.transform = `translate(-50%,-50%) scale(${sc})`; });
+        lbCt.textContent = `${pad(sw < 0.5 ? 2 : 3)} / ${pad(allPieces)}`;
     }
-    // 5 · olas y rótulos
-    if (t >= T.s5[0] && t < T.s5[1]) {
-        $('.wa').style.transform = `translateX(${Math.sin(t * 3) * 40}px)`;
-        $('.wb').style.transform = `translateX(${Math.cos(t * 2.4) * 60}px)`;
-    }
-    // 6 · rueda 3D
-    if (t >= T.s6[0] && t < T.s6[1]) {
-        const u = (t - 12.5) / 2.5;
-        const ang = 20 + 480 * Math.pow(u, 1.7);
-        const sc2 = 1 + 0.07 * pulse(t);
-        ring.style.transform = `translateZ(${-R - 120}px) rotateX(-7deg) rotateY(${ang}deg) scale(${sc2})`;
-        cards.forEach((c, i) => { c.style.transform = `rotateY(${i * 45}deg) translateZ(${R}px)`; });
-        const wi = clamp(Math.floor((t - 12.5) / B), 0, 3);
-        wordEls.forEach((w, i) => { w.style.display = i === wi ? 'block' : 'none'; });
-        const pp = pulse(t);
-        wordEls[wi].style.transform = `translateY(-50%) scale(${1 + 0.06 * pp})`;
-    }
-    // 7 · subida
-    if (t >= T.s7[0] && t < T.s7[1]) {
-        const u = clamp((t - 15) / 2.3);
-        const v = Math.round(100 * Math.pow(u, 2.2));
-        countEl.textContent = String(v).padStart(3, '0');
-        const j = Math.floor(t * 30);
-        const amp = 3 + 14 * u;
-        const dx = Math.round((hash(j, 1) - 0.5) * amp * 2); const dy = Math.round((hash(j, 2) - 0.5) * amp);
-        yaEl.style.textShadow = `${dx}px ${dy}px 0 #f0f, ${-dx}px ${-dy}px 0 #0ff`;
-        countEl.style.textShadow = `${dx * 2}px ${dy}px 0 #f0f, ${-dx * 2}px ${-dy}px 0 #0ff`;
-        const fillX = (v / 100) * BW;
-        const img = barCtx.createImageData(BW, BH);
-        for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
-            const i = (y * BW + x) * 4;
-            const on = x < fillX - 14 * bayer(x, y);
-            img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = on ? 255 : 0;
-        }
-        barCtx.putImageData(img, 0, 0);
-    }
-    // 8 · cierre
-    if (t >= T.s8[0]) {
+    // Biblioteca
+    if (S.l.style.display !== 'none') wheelL.update(t);
+    // Cierre
+    if (S.e.style.display !== 'none') {
         const p = ease(clamp((t - 17.55) / 0.95));
         const crisp = t >= 18.5;
-        titleEl.style.visibility = crisp ? 'visible' : 'hidden';
+        $('.title', S.e).style.visibility = crisp ? 'visible' : 'hidden';
         dt.style.display = crisp ? 'none' : 'block';
-        if (!crisp && dtMask) {
-            const d = dtImg.data;
-            for (let y = 0; y < dt.height; y++) for (let x = 0; x < dt.width; x++) {
-                const i = (y * dt.width + x) * 4;
-                const on = dtMask[y * dt.width + x] && p > bayer(x, y);
-                d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = on ? 255 : 0;
-            }
-            dtCtx.putImageData(dtImg, 0, 0);
-        }
-        const hit = pulse(t - 19.375 + 100 * B, 100, 14) * (t >= 19.375 ? 1 : 0);
-        titleEl.style.transform = `scale(${1 + 0.035 * hit})`;
+        if (!crisp) paintMask(dt, dtCtx, dtImg, endMask, p);
         const n = Math.floor(clamp((t - 18.75) / 0.07, 0, 9));
-        online.textContent = 'YA ONLINE'.slice(0, n);
-        cursor.style.visibility = t >= 18.7 && (n < 9 || Math.floor((t - 18.75) / E) % 2 === 0) ? 'visible' : 'hidden';
+        $('.online span', S.e).textContent = 'YA ONLINE'.slice(0, n);
+        $('.online i', S.e).style.visibility = t >= 18.7 && (n < 9 || Math.floor((t - 18.75) / 0.5) % 2 === 0) ? 'visible' : 'hidden';
     }
-    // destello (invierte lo que hay debajo)
-    stage.querySelector('.flash').style.opacity = FLASH.some(([a, b]) => t >= a && t < b) ? 1 : 0;
-    drawWipe(t);
-    // apagón antes del cierre
-    if (t >= 17.4 && t < 17.45) { stage.querySelectorAll('.sc').forEach((s) => { s.style.display = 'none'; }); }
+    // cursor
+    const cs = cursorState(t);
+    if (cs) {
+        curEl.style.opacity = cs.a;
+        curEl.style.transform = `translate(${cs.x}px, ${cs.y}px) scale(${1 - 0.3 * cs.press})`;
+        if (curLabel.textContent !== cs.label) curLabel.textContent = cs.label;
+        curLabel.style.display = cs.label ? 'block' : 'none';
+    } else curEl.style.opacity = 0;
+    void typed;
 }
 
-let HORSE_IMG;
-export function render(t) {
-    master.time(t, false);
-    update(t);
-}
+export function render(t) { update(t); }
 window.render = render;
 window.AUDIO = AUDIO;
 window.DURATION = DURATION;
@@ -439,49 +398,29 @@ window.DURATION = DURATION;
 /* ───────────────────────── arranque ───────────────────────── */
 async function boot() {
     await Promise.all([
-        document.fonts.load('800 100px "Inter Tight"'), document.fonts.load('500 100px "Inter Tight"'),
-        document.fonts.load('500 20px "Roboto Mono"'), document.fonts.load('600 20px "Roboto Mono"'), document.fonts.load('700 20px "Roboto Mono"'),
-        document.fonts.load('700 100px "Space Mono"'), document.fonts.load('400 20px "Space Mono"'),
-    ]);
+        ['800 100px "Inter Tight"', '700 40px "Inter Tight"', '300 30px "Roboto Mono"', '400 30px "Roboto Mono"', '500 30px "Roboto Mono"', '600 30px "Roboto Mono"', '700 40px "Space Mono"']
+            .map((f) => document.fonts.load(f)),
+    ].flat());
     await document.fonts.ready;
     HORSE_IMG = await loadImg('/images/transition/caballo.webp');
-    await Promise.all(COVERS.map(async ([slug]) => {
-        const img = await loadImg(`/images/projects/${slug}/cover-1200.webp`, `/images/projects/${slug}/cover.webp`);
-        COVER_IMG[slug] = img;
-        const cv = $(`.cv[data-s="${slug}"]`);
-        $('img', cv).src = img.src;
-        const ov = $('canvas', cv); ov.width = LW; ov.height = LH;
-        // luminancia a baja resolución, con el mismo recorte (cover) que la imagen
-        const off = document.createElement('canvas'); off.width = LW; off.height = LH;
-        const c = off.getContext('2d', { willReadFrequently: true });
-        const s = Math.max(LW / img.naturalWidth, LH / img.naturalHeight);
-        c.drawImage(img, (LW - img.naturalWidth * s) / 2, (LH - img.naturalHeight * s) / 2, img.naturalWidth * s, img.naturalHeight * s);
-        const px = c.getImageData(0, 0, LW, LH).data;
-        const lum = new Float32Array(LW * LH);
-        for (let i = 0; i < lum.length; i++) lum[i] = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
-        covLum[slug] = lum;
-    }));
-    cards.forEach((c, i) => { c.style.backgroundImage = `url(${COVER_IMG[COVERS[i][0]].src})`; });
+    const urls = [...PW.map((p) => p.cover.src), ...LIB.map((e) => e.cover), ...gallery.map((g) => g.src)];
+    await Promise.all(urls.map(loadImg));
 
-    // fuentes ya listas: tipografías de los rótulos y máscara de dither del título final
-    const tape = $('.tape div'); void tape;
-    sc.s8.style.display = 'flex';
-    const r = titleEl.getBoundingClientRect(); const sr = stage.getBoundingClientRect();
-    const off = document.createElement('canvas'); off.width = dt.width; off.height = dt.height;
-    const c = off.getContext('2d', { willReadFrequently: true });
-    c.fillStyle = '#fff'; c.textBaseline = 'alphabetic'; c.textAlign = 'center';
-    c.font = `800 ${titleSize / DC}px "Inter Tight"`;
-    c.letterSpacing = `${(-0.045 * titleSize) / DC}px`;
-    // Alineado con el título del DOM: centro horizontal y línea base medida con un span vacío
-    const probe = document.createElement('span'); probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
-    titleEl.append(probe);
-    const base = probe.getBoundingClientRect().top - sr.top;
-    probe.remove();
-    c.fillText('(MZZ.DSG)', (r.left - sr.left + r.width / 2) / DC, base / DC);
-    const px = c.getImageData(0, 0, dt.width, dt.height).data;
-    dtMask = new Uint8Array(dt.width * dt.height);
-    for (let i = 0; i < dtMask.length; i++) dtMask[i] = px[i * 4 + 3] > 120 ? 1 : 0;
-    sc.s8.style.display = 'none';
+    // medidas: se muestran todas las escenas (invisibles) para leer posiciones reales
+    const all = [S.a, S.w, S.p, S.l, S.e];
+    all.forEach((s) => { s.style.display = 'block'; s.style.opacity = 0; });
+    const size = Math.min(HZ ? 190 : 205, fitSize('(MZZ.DSG)', HZ ? 800 : W - 88));
+    const ht1 = $('.ht1'); const ht2 = $('.ht2');
+    ht1.style.fontSize = ht2.style.fontSize = `${size}px`;
+    if (HZ) { ht1.style.top = '430px'; ht2.style.top = '430px'; ht2.style.left = 'auto'; ht2.style.right = '44px'; }
+    else { ht1.style.top = '560px'; ht2.style.top = `${560 + size * 0.95}px`; }
+    const et = $('.title', S.e); et.style.fontSize = `${fitSize('(MZZ.DSG)', W * (HZ ? 0.74 : 0.93))}px`;
+    const center = (el) => { const r = el.getBoundingClientRect(); const sr = stage.getBoundingClientRect(); return { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2 }; };
+    C.cta = center($('.cta', S.a)); C.ver = center($('.wf2', S.w));
+    heroMask = textMask([ht1, ht2], hero.width, hero.height);
+    endMask = textMask([et], dt.width, dt.height);
+    all.forEach((s) => { s.style.display = 'none'; s.style.opacity = 1; });
+    $('.title', S.e).style.visibility = 'hidden';
 
     window.ready = true;
     render(0);
@@ -498,6 +437,6 @@ if (!RENDER) {
     const set = (t) => { if (!window.ready) return; render(t); scrub.value = t; clock.textContent = t.toFixed(2); };
     scrub.addEventListener('input', () => set(Number(scrub.value)));
     play.addEventListener('click', () => { playing = !playing; play.textContent = playing ? '❚❚' : '▶'; t0 = performance.now() - Number(scrub.value) * 1000; });
-    const loop = () => { if (playing) { const t = ((performance.now() - t0) / 1000) % DURATION; set(t); } requestAnimationFrame(loop); };
+    const loop = () => { if (playing) set(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
     loop();
 }

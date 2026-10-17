@@ -1,5 +1,5 @@
 /**
- * Junta los cuadros y el audio del promo en un MP4 (H.264 + AAC, audio normalizado a ~-14 LUFS para redes).
+ * Junta los cuadros y el audio del promo en un MP4 (H.264 + AAC, audio normalizado a ~-16 LUFS para redes).
  *   node scripts/showcase/edit.mjs v|h
  */
 import { execFileSync } from 'node:child_process';
@@ -17,7 +17,7 @@ execFileSync(ffmpeg, [
     '-v', 'error', '-y',
     '-framerate', String(FPS), '-i', path.join(dir, 'f%04d.jpg'),
     '-i', path.join(dir, 'audio.wav'),
-    '-af', 'loudnorm=I=-14:TP=-1.5:LRA=7',
+    '-af', 'loudnorm=I=-16:TP=-1.5:LRA=9',
     '-c:v', 'libx264', '-crf', '18', '-preset', 'slow', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
     '-t', String(DURATION), '-movflags', '+faststart', out,
