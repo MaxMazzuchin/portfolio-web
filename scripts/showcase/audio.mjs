@@ -1,24 +1,24 @@
 /**
- * Arma el audio del video: base rítmica + efectos registrados en la grabación (sfx.json), renderizados en Chrome
- * con las mismas recetas de src/core/sound.js. Salida: originales/showcase/<modo>/audio.wav (48 kHz estéreo).
- *   node scripts/showcase/audio.mjs desk|mob
+ * Arma el audio del promo: la lista AUDIO de la timeline (audio.json, la deja render.mjs), renderizada en Chrome
+ * con las mismas recetas de src/core/sound.js. Salida: originales/showcase/promo-<v|h>/audio.wav (48 kHz estéreo).
+ *   node scripts/showcase/audio.mjs v|h
  */
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
-import { bassCues, extraCues, DURATION, SITE } from './cues.mjs';
 
-const mode = process.argv[2] === 'mob' ? 'mob' : 'desk';
-const dir = path.resolve('originales/showcase', mode);
-const logged = JSON.parse(fs.readFileSync(path.join(dir, 'sfx.json'), 'utf8')).filter((q) => q.t >= 0 && q.t < DURATION && q.name !== 'hover');
-const cues = [...bassCues(), ...extraCues(), ...logged].map((q) => ({ ...q, t: q.t + 0.005 }));
+const SITE = 'http://localhost:5199';
+const DURATION = 20;
+const mode = process.argv[2] === 'h' ? 'h' : 'v';
+const dir = path.resolve('originales/showcase', `promo-${mode}`);
+const cues = JSON.parse(fs.readFileSync(path.join(dir, 'audio.json'), 'utf8')).filter((q) => q.t >= 0 && q.t < DURATION).map((q) => ({ ...q, t: q.t + 0.005 }));
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const page = await browser.newPage();
 await page.goto(SITE + '/');
 const b64 = await page.evaluate(async ({ cues, secs }) => {
     const { renderCues } = await import('/src/core/sound.js');
-    const buf = await renderCues(cues, secs, { gain: 0.6 });
+    const buf = await renderCues(cues, secs, { gain: 0.9 });
     const n = buf.length;
     const out = new Int16Array(n * 2);
     const l = buf.getChannelData(0);

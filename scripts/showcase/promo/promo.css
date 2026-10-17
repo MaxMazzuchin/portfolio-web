@@ -1,0 +1,103 @@
+/* Escenario del video promo. 1080×1920 (vertical) o 1920×1080 (html.h). Todo en px: el escenario no es responsive. */
+:root { --W: 1080px; --H: 1920px; --display: 'Inter Tight', Helvetica, Arial, sans-serif; --mono: 'Roboto Mono', ui-monospace, monospace; --num: 'Space Mono', ui-monospace, monospace; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #111; overflow: hidden; height: 100%; }
+#viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+#stage { position: relative; width: var(--W); height: var(--H); overflow: hidden; background: #000; color: #fff; font-family: var(--display); transform-origin: center; flex: none; }
+html.render #viewport { display: block; }
+html.render #stage { position: absolute; left: 0; top: 0; transform: none !important; }
+
+#stage > * { position: absolute; }
+.bg { inset: 0; }
+canvas { image-rendering: pixelated; }
+.snow, .wipe { left: 0; top: 0; width: var(--W); height: var(--H); }
+.wipe { pointer-events: none; }
+.sc { inset: 0; display: none; overflow: hidden; }
+.flash { inset: 0; background: #fff; mix-blend-mode: difference; opacity: 0; pointer-events: none; }
+
+/* Letras */
+.ch { display: inline-block; }
+.big { font-family: var(--display); font-weight: 800; line-height: .8; letter-spacing: -0.04em; white-space: nowrap; }
+
+/* HUD */
+.hud { inset: 0; mix-blend-mode: difference; font: 500 22px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+.hud span { position: absolute; }
+.hud .tl { left: 44px; top: 44px; } .hud .tr { right: 44px; top: 44px; font-family: var(--num); }
+.hud .bl { left: 44px; bottom: 44px; } .hud .br { right: 44px; bottom: 44px; }
+html.h .hud { font-size: 20px; }
+
+/* 1 · MZZ */
+.s1 { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.s1 .big { font-size: 880px; line-height: .72; }
+html.h .s1 { flex-direction: row; align-items: center; gap: 0; }
+html.h .s1 .big { font-size: 800px; line-height: .8; }
+
+/* 2 · NUEVO PORTFOLIO (fondo blanco, el bg lo pone el estado) */
+.s2 { color: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding-bottom: 230px; }
+html.h .s2 { padding-bottom: 150px; }
+.s2 .lines { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.s2 .big { line-height: .8; }
+.s2 .mono { font: 500 30px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.tape { left: 0; right: 0; bottom: 130px; height: 72px; background: #000; color: #fff; overflow: hidden; display: flex; align-items: center; }
+.tape div { white-space: nowrap; font: 600 34px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; will-change: transform; }
+html.h .tape { bottom: 110px; }
+
+/* 3 · caballo */
+.s3 { color: #fff; }
+.s3 canvas.horse { position: absolute; top: 50%; width: 1500px; height: 1055px; margin-top: -527px; }
+html.h .s3 canvas.horse { width: 1260px; height: 886px; margin-top: -443px; }
+.s3 .year { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-size: 520px; line-height: .8; margin-top: -270px; -webkit-text-stroke: 4px #fff; color: transparent; letter-spacing: -.04em; }
+html.h .s3 .year { font-size: 640px; margin-top: -330px; }
+.s3 .sp { position: absolute; height: 10px; background: #fff; }
+.s3 .cap { position: absolute; left: 0; right: 0; bottom: 170px; text-align: center; font: 600 30px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+
+/* 4 · portadas */
+.s4 .cv { position: absolute; inset: 0; display: none; overflow: hidden; }
+.s4 .cv .z { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.s4 .cv img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.s4 .cv canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.s4 .nm { position: absolute; left: 44px; right: 44px; bottom: 150px; font-size: 220px; line-height: .8; color: #fff; text-shadow: 0 0 60px rgba(0,0,0,.45); }
+.s4 .no { position: absolute; left: 44px; top: 110px; font: 700 64px/1 var(--num); padding: 10px 18px; background: #000; }
+.s4 .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; }
+html.h .s4 .nm { font-size: 250px; bottom: 120px; }
+
+/* 5 · logos */
+.s5 .pn { position: absolute; display: grid; place-items: center; overflow: hidden; }
+.s5 .pn svg { overflow: visible; }
+.s5 .lb { position: absolute; left: 36px; top: 96px; font: 600 26px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.s5 .lc { position: absolute; right: 36px; bottom: 96px; font: 500 22px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.s5 .pn-n { background: #0a0a0a; color: #c7f24b; }
+.s5 .pn-c { background: #1c3f9a; color: #fff; }
+.s5 .pn-b { background: #0a1a8c; color: #fff; }
+.s5 .pn-n svg { width: 300px; height: 300px; }
+.s5 .pn-c svg { height: 380px; width: auto; }
+.s5 .pn-b svg.bm-logo { height: 330px; width: auto; position: relative; z-index: 2; }
+.s5 .pn-b .waves { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
+.s5 .cb-p { fill: #fff; fill-opacity: 0; stroke: #fff; stroke-width: 3; stroke-opacity: 1; stroke-dasharray: 100; stroke-dashoffset: 100; stroke-linejoin: round; }
+.s5 .bm-fill { fill: #fff; }
+.s5 .np { fill: #c7f24b; }
+
+/* 6 · rueda */
+.s6 { perspective: 1500px; perspective-origin: 50% 46%; }
+.s6 .ring { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+.s6 .card { position: absolute; left: -270px; top: -360px; width: 540px; height: 720px; background-size: cover; background-position: center; backface-visibility: visible; border: 6px solid #fff; }
+.s6 .word { position: absolute; left: 0; right: 0; top: 50%; text-align: center; mix-blend-mode: difference; color: #fff; z-index: 5; display: none; }
+html.h .s6 .card { left: -300px; top: -400px; width: 600px; height: 800px; }
+
+/* 7 · subida */
+.s7 .count { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font: 700 520px/1 var(--num); margin-top: -330px; letter-spacing: -.06em; }
+html.h .s7 .count { font-size: 640px; margin-top: -380px; }
+.s7 .ya { position: absolute; left: 0; right: 0; top: 18%; text-align: center; font: 700 64px/1 var(--mono); letter-spacing: .12em; }
+.s7 canvas.bar { position: absolute; left: 0; right: 0; bottom: 120px; width: 100%; height: 130px; }
+
+/* 8 · cierre */
+.s8 { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 56px; }
+.s8 canvas.dt { position: absolute; inset: 0; width: 100%; height: 100%; }
+.s8 .title { position: relative; font-weight: 800; letter-spacing: -.045em; line-height: .8; white-space: nowrap; }
+.s8 .online { position: relative; font: 700 84px/1 var(--mono); letter-spacing: .14em; height: 84px; }
+.s8 .online i { display: inline-block; width: .55em; height: .9em; margin-left: .15em; background: #fff; vertical-align: -.08em; }
+
+/* Revisión en el navegador */
+#ui { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 12px; align-items: center; padding: 10px 16px; background: rgba(0,0,0,.8); color: #fff; z-index: 99; font: 14px var(--mono); }
+#ui[hidden] { display: none; }
+#scrub { flex: 1; }
