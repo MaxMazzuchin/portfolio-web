@@ -44,6 +44,14 @@ main, .footer { position: relative; z-index: 1; }
 .gl-on [data-gl-img] { opacity: 0; }
 [data-gl-img] { background: var(--line); }
 
+/* El contenido de cada proyecto y el índice de Trabajos vienen ya en el HTML (pre-renderizados en el build, para buscadores y
+   vistas previas). Con JS, el proyecto espera a que main.js lo monte (agrega .is-mounted) así las imágenes y textos no aparecen
+   un instante antes de que GL y las animaciones de entrada los tomen; si el JS no llegara, se muestra igual a los 6 s.
+   Sin JS, el índice de Trabajos (que con JS solo es el respaldo sin WebGL) queda visible. */
+html.js:not(.is-mounted) main[data-page="project"] { visibility: hidden; animation: show-late 0s 6s forwards; }
+@keyframes show-late { to { visibility: visible; } }
+html:not(.js) .c-index { display: block; }
+
 /* Giant flat letterforms behind a page (CRL-style), not dithered. */
 /* main.js hoists .ghost into this layer, a child of <body>, so it paints BELOW the WebGL canvas (inside <main> it would
    cover it). overflow:hidden keeps letters wider than the screen from widening the mobile viewport. */

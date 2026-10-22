@@ -8,6 +8,7 @@ import { setAccent } from '../core/accent.js';
 import { sized } from '../core/srcset.js';
 import { generatedCover } from '../core/cards.js';
 import { mountDbars } from '../core/dbar.js';
+import { indexRowHTML } from './work-index.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -212,8 +213,8 @@ function collection(kind, view) {
             </div>`).join('');
         const rows = [...listEl.children];
 
-        indexEl.innerHTML = items.map((it, i) => `
-            <button type="button" class="ci-row" data-i="${i}"><span class="num">${pad(i + 1)}</span><span>${esc(it.name)}</span><span>${esc(it.sub)}</span></button>`).join('');
+        // En Trabajos las filas son links reales (el build deja el mismo índice en trabajo.html, ver views/work-index.js).
+        indexEl.innerHTML = items.map(indexRowHTML).join('');
         const idxRows = [...indexEl.children];
         onResize();
 
@@ -269,6 +270,11 @@ function collection(kind, view) {
         }
         const row = e.target.closest('.ci-row');
         if (row) {
+            // Un link del índice no navega solo: la rueda decide (primer click selecciona). Con Ctrl/Cmd/Shift se abre en otra pestaña como siempre.
+            if (row.tagName === 'A') {
+                if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                e.preventDefault();
+            }
             const i = Number(row.dataset.i);
             // En el celular un toque abre la entrada (seleccionar primero y abrir con otro toque es confuso); en escritorio, el primero selecciona.
             if (i === wheel.active || narrow.matches) activate(i); else wheel.goTo(i);

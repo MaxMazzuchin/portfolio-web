@@ -83,6 +83,8 @@ async function mount(view) {
             gsap.from(el, { autoAlpha: 0, y: 28, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 92%' } });
         });
     }
+    // Recién ahora se muestra el contenido pre-renderizado (ver base.css): GL ya ocultó las imágenes y GSAP los textos que entran animados.
+    document.documentElement.classList.add('is-mounted');
 
     await gl.build(view);
     ScrollTrigger.refresh();

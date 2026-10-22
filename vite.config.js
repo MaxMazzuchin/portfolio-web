@@ -9,13 +9,22 @@ const root = import.meta.dirname;
 const SITE = (process.env.SITE_URL || process.env.URL || '').replace(/\/+$/, '');
 const NAME = 'Máximo Mazzuchin';
 
-/** Inyecta src/partials/<name>.html donde las páginas ponen <!--shell:<name>-->, así head/header/footer viven en un solo lugar. */
+/** Inyecta src/partials/<name>.html donde las páginas ponen <!--shell:<name>-->, así head/header/footer viven en un solo lugar.
+ *  <!--prerender:work-index--> (trabajo.html) se reemplaza por el índice de proyectos con links reales (views/work-index.js),
+ *  para que buscadores y lectores sin JS vean los trabajos; en el navegador collection.js pinta el mismo índice encima. */
 function shellPartials() {
     return {
         name: 'shell-partials',
         transformIndexHtml: {
             order: 'pre',
-            handler: (html) => html.replace(/<!--shell:(\w+)-->/g, (_, name) => readFileSync(resolve(root, `src/partials/${name}.html`), 'utf8')),
+            async handler(html) {
+                html = html.replace(/<!--shell:(\w+)-->/g, (_, name) => readFileSync(resolve(root, `src/partials/${name}.html`), 'utf8'));
+                if (html.includes('<!--prerender:work-index-->')) {
+                    const { workIndexHTML } = await import(pathToFileURL(resolve(root, 'src/views/work-index.js')).href);
+                    html = html.replace('<!--prerender:work-index-->', () => workIndexHTML());
+                }
+                return html;
+            },
         },
     };
 }
@@ -37,7 +46,7 @@ const clip = (text, max = 160) => {
 const ld = (obj) => `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`;
 
 /** Bloque de tags de compartir de una página. Va entre marcas para poder reemplazarlo en las páginas de proyecto. */
-function seoBlock({ title, desc, url, image, canonical = true, noindex = false, extra = [] }) {
+function seoBlock({ title, desc, url, image, alt = `${NAME}, diseñador gráfico en Córdoba, Argentina`, canonical = true, noindex = false, extra = [] }) {
     const tags = [
         '<meta name="theme-color" content="#000000">',
         '<meta property="og:type" content="website">',
@@ -48,10 +57,12 @@ function seoBlock({ title, desc, url, image, canonical = true, noindex = false, 
         `<meta property="og:image" content="${image}">`,
         '<meta property="og:image:width" content="1200">',
         '<meta property="og:image:height" content="630">',
+        `<meta property="og:image:alt" content="${esc(alt)}">`,
         '<meta name="twitter:card" content="summary_large_image">',
         `<meta name="twitter:title" content="${esc(title)}">`,
         `<meta name="twitter:description" content="${esc(desc)}">`,
         `<meta name="twitter:image" content="${image}">`,
+        `<meta name="twitter:image:alt" content="${esc(alt)}">`,
     ];
     if (url && canonical) tags.push(`<link rel="canonical" href="${url}">`, `<meta property="og:url" content="${url}">`);
     if (noindex) tags.push('<meta name="robots" content="noindex">');
@@ -108,6 +119,8 @@ function seo() {
             order: 'post',
             async handler(_opts, bundle) {
                 const { projects, projectUrl, known } = await import(pathToFileURL(resolve(root, 'src/data/work.js')).href);
+                const { renderProject } = await import(pathToFileURL(resolve(root, 'src/views/project-html.js')).href);
+                if (!SITE) this.warn('Sin SITE_URL ni URL: og:image, og:url y canonical quedan relativos y las vistas previas de links no muestran imagen. En Netlify URL ya viene; para compilar a mano: SITE_URL=https://... npm run build');
 
                 // Una página por proyecto, a partir del proyecto.html ya procesado (con sus scripts y estilos hasheados).
                 const generic = bundle['proyecto.html'];
@@ -133,7 +146,7 @@ function seo() {
                         }
 
                         const block = seoBlock({
-                            title, desc, url: SITE ? SITE + route : '', image,
+                            title, desc, url: SITE ? SITE + route : '', image, alt: `${p.title}, ${p.type.toLowerCase()} de ${NAME}`,
                             extra: [ld({
                                 '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, genre: p.type, description: desc,
                                 image, creator: { '@type': 'Person', name: NAME }, ...(c && known(c.year) && { dateCreated: c.year }), ...(SITE && { url: SITE + route }),
@@ -142,7 +155,10 @@ function seo() {
                         const page = base
                             .replace(/<title>[\s\S]*?<\/title>/, () => `<title>${esc(title)}</title>`)
                             .replace(/<meta name="description" content="[^"]*">/, () => `<meta name="description" content="${esc(desc)}">`)
-                            .replace(/<!--seo-->[\s\S]*?<!--\/seo-->/, () => block);
+                            .replace(/<!--seo-->[\s\S]*?<!--\/seo-->/, () => block)
+                            // El contenido del proyecto ya en el HTML: buscadores, vistas previas y lectores sin JS lo ven; project.js lo reutiliza.
+                            .replace(/(<main data-router-view data-page="project")>\s*<\/main>/, (_, open) => `${open}>${renderProject(p)}</main>`);
+                        if (!page.includes(`data-project="${p.slug}"`)) this.error(`No se pudo pre-renderizar ${p.slug}: falta <main data-router-view data-page="project"></main> en proyecto.html.`);
                         this.emitFile({ type: 'asset', fileName: `proyecto/${p.slug}/index.html`, source: page });
                     }
                 }
